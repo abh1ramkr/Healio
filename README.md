@@ -1,6 +1,6 @@
 <div align="center">
 
-  # 😊 HEALIO
+  # HEALIO
   ### *Multimodal AI Mental Health Companion*
 
   [![React](https://img.shields.io/badge/Frontend-React_18-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
@@ -18,31 +18,31 @@
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-- **🎙️ Multimodal Input Support**: Accepts text, uploaded audio files, live microphone voice recordings, and video uploads/webcam captures.
-- **🧠 Advanced Emotion Classification**: Utilizes a fine-tuned GoEmotions Transformer model on PyTorch to detect 28 distinct emotional states with confidence scoring.
-- **🗣️ Speech-to-Text Transcription**: Powered by OpenAI's Whisper model for accurate speech transcription across audio and video inputs.
-- **💬 Empathetic AI Conversations**: Integrates Google Gemini AI to provide empathetic, contextual mental health support tailored to the user's detected emotional state.
-- **🔊 Voice Response Generation**: Converts AI responses back into natural voice output using Text-to-Speech (gTTS).
-- **🎨 Modern React UI**: Custom glassmorphism interface featuring dynamic emotion visualizers, real-time message streaming, and responsive design.
+- **Multimodal Input Support**: Accepts text, uploaded audio files, live microphone voice recordings, and video uploads/webcam captures.
+- **Advanced Emotion Classification**: Utilizes a fine-tuned GoEmotions Transformer model on PyTorch to detect 28 distinct emotional states with confidence scoring.
+- **Speech-to-Text Transcription**: Powered by OpenAI's Whisper model for accurate speech transcription across audio and video inputs.
+- **Empathetic AI Conversations**: Integrates Google Gemini AI to provide empathetic, contextual mental health support tailored to the user's detected emotional state.
+- **Voice Response Generation**: Converts AI responses back into natural voice output using Text-to-Speech (gTTS).
+- **Modern React UI**: Custom glassmorphism interface featuring dynamic emotion visualizers, real-time message streaming, and responsive design.
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```mermaid
 graph TD
-    User([👤 User / Web Client]) -->|Text / Audio / Video| ReactApp[⚛️ React Frontend]
-    ReactApp -->|REST API POST Requests| FastAPI[⚡ FastAPI Backend]
+    User([User / Web Client]) -->|Text / Audio / Video| ReactApp[React Frontend]
+    ReactApp -->|REST API POST Requests| FastAPI[FastAPI Backend]
     
     subgraph Machine Learning Pipeline
-        FastAPI -->|Audio/Video Stream| Whisper[🎙️ OpenAI Whisper STT]
-        Whisper -->|Transcribed Text| GoEmotions[🧠 GoEmotions Classifier]
+        FastAPI -->|Audio/Video Stream| Whisper[OpenAI Whisper STT]
+        Whisper -->|Transcribed Text| GoEmotions[GoEmotions Classifier]
         FastAPI -->|Direct Text| GoEmotions
-        GoEmotions -->|Detected Emotion + Text| PromptBuilder[📝 Prompt Engine]
-        PromptBuilder -->|Contextual Prompt| Gemini[✨ Google Gemini AI]
-        Gemini -->|Text Response| TTS[🔊 gTTS Speech Synthesizer]
+        GoEmotions -->|Detected Emotion + Text| PromptBuilder[Prompt Engine]
+        PromptBuilder -->|Contextual Prompt| Gemini[Google Gemini AI]
+        Gemini -->|Text Response| TTS[gTTS Speech Synthesizer]
     end
 
     FastAPI -->|JSON + Audio Payload| ReactApp
@@ -51,7 +51,7 @@ graph TD
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
@@ -64,7 +64,7 @@ graph TD
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 Healio/
@@ -88,7 +88,7 @@ Healio/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - **Python**: 3.9 or higher
@@ -144,7 +144,7 @@ npm start
 
 ---
 
-## 📡 API Endpoints Summary
+## API Endpoints Summary
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
@@ -156,7 +156,7 @@ npm start
 
 ---
 
-## 🤝 Portfolio & Contact
+## Portfolio & Contact
 
 Developed as an AI Mental Health Companion project showcasing full-stack React and Python machine learning integration.
 
