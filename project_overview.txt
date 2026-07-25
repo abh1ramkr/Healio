@@ -1,0 +1,19 @@
+### Project Overview: HEALIO - AI Mental Health Chatbot
+
+HEALIO is an AI-powered mental health companion built with a React frontend and a Python FastAPI backend. It provides empathetic, supportive responses by analyzing text, audio, and video inputs.
+
+#### 1. **Architecture & Tech Stack**
+- **Frontend**: React.js (single-page application with modern responsive CSS, voice recorder, video recorder, and real-time chat UI).
+- **Backend**: Python FastAPI REST API (`backend/main.py`) handling authentication, media processing, emotion classification, Gemini AI prompt construction, and TTS generation.
+- **AI/ML Components**:
+  - OpenAI Whisper for audio & video transcription.
+  - Fine-tuned GoEmotions Transformer model for multi-label emotion detection.
+  - Google Gemini API for generating empathetic responses.
+  - Google Text-to-Speech (gTTS) for audio playback.
+
+#### 2. **Project Structure**
+- `backend/main.py`: FastAPI server exposing `/login`, `/chat`, `/voice`, `/video`, and `/history`.
+- `frontend/`: React application (`App.js`, `App.css`, `package.json`).
+- `src/main.py`: Entry point for launching the FastAPI server.
+- `requirements.txt`: Python package dependencies (FastAPI, uvicorn, torch, transformers, whisper, gtts, etc.).
+- `.env`: Environment configuration file for Gemini API keys.

@@ -1,0 +1,10 @@
+openai-whisper
+requests
+torch
+transformers
+gTTS
+python-dotenv
+Pillow
+fastapi
+uvicorn
+python-multipart

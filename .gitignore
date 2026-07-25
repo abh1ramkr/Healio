@@ -1,0 +1,31 @@
+# Environment variables and secrets
+.env
+.env.local
+*.env
+
+# Virtual environments
+.venv/
+.venv-1/
+venv/
+env/
+ENV/
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Node modules & build files
+node_modules/
+frontend/node_modules/
+frontend/build/
+build/
+dist/
+
+# OS / IDE generated files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
