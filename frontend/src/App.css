@@ -464,6 +464,19 @@ body {
   border-bottom-left-radius: 4px;
 }
 
+.typing-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--accent-cyan);
+  font-weight: 700;
+  animation: blinkCursor 0.7s infinite;
+}
+
+@keyframes blinkCursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 .emotion-chips-container {
   display: flex;
   flex-wrap: wrap;

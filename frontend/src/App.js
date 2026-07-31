@@ -1,6 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
+// Typewriter component for animated typing effect on new AI responses
+function TypewriterText({ text, speed = 12 }) {
+  const [displayedText, setDisplayedText] = useState('');
+  const [isTyping, setIsTyping] = useState(true);
+
+  useEffect(() => {
+    let index = 0;
+    setIsTyping(true);
+    setDisplayedText('');
+
+    if (!text) {
+      setIsTyping(false);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      if (index < text.length) {
+        setDisplayedText((prev) => text.slice(0, index + 1));
+        index++;
+      } else {
+        setIsTyping(false);
+        clearInterval(interval);
+      }
+    }, speed);
+
+    return () => clearInterval(interval);
+  }, [text, speed]);
+
+  return (
+    <span>
+      {displayedText}
+      {isTyping && <span className="typing-cursor">|</span>}
+    </span>
+  );
+}
+
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -56,7 +92,7 @@ function App() {
       clearInterval(audioTimerRef.current);
       setAudioTimer(0);
     }
-    return () => clearTimeout(audioTimerRef.current);
+    return () => clearInterval(audioTimerRef.current);
   }, [isRecordingAudio]);
 
   const fetchHistory = async (user) => {
@@ -68,8 +104,8 @@ function App() {
       if (data && data.history) {
         const loaded = [];
         data.history.forEach((h) => {
-          if (h[0]) loaded.push({ type: 'user', text: h[0] });
-          if (h[2]) loaded.push({ type: 'bot', text: h[2], emotions: h[1] });
+          if (h[0]) loaded.push({ type: 'user', text: h[0], isNew: false });
+          if (h[2]) loaded.push({ type: 'bot', text: h[2], emotions: h[1], isNew: false });
         });
         setMessages(loaded);
       }
@@ -164,12 +200,13 @@ function App() {
       const data = await res.json();
       
       const userText = data.transcription || inputText || fallbackUserText || 'Media Upload Processed';
-      const userMsg = { type: 'user', text: userText };
+      const userMsg = { type: 'user', text: userText, isNew: false };
       const botMsg = {
         type: 'bot',
         text: data.response,
         emotions: data.emotions,
         audio: data.audio_base64 ? `data:audio/mp3;base64,${data.audio_base64}` : null,
+        isNew: true, // triggers typewriter typing animation
       };
 
       setMessages((prev) => [...prev, userMsg, botMsg]);
@@ -180,7 +217,7 @@ function App() {
       console.error('API Error:', error);
       setMessages((prev) => [
         ...prev,
-        { type: 'bot', text: 'I encountered an issue processing your request. Please try again.' },
+        { type: 'bot', text: 'I encountered an issue processing your request. Please try again.', isNew: true },
       ]);
     } finally {
       setIsLoading(false);
@@ -466,7 +503,10 @@ function App() {
             </div>
           ) : (
             messages.map((msg, idx) => (
-              <div key={idx} className={`message-row ${msg.type === 'user' ? 'row-user' : 'row-bot'}`}>
+              <div key={idx} className={`message-row ${msg.type === 'user' ? 'user' : 'bot'}`}>
+                <div className="avatar-badge">
+                  {msg.type === 'user' ? '👤' : '😊'}
+                </div>
                 <div className={`message-bubble ${msg.type === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
                   {msg.type === 'bot' && (
                     <div className="bot-header">
@@ -479,7 +519,13 @@ function App() {
                     </div>
                   )}
 
-                  <div className="message-content">{msg.text}</div>
+                  <div className="message-content">
+                    {msg.type === 'bot' && msg.isNew ? (
+                      <TypewriterText text={msg.text} speed={12} />
+                    ) : (
+                      msg.text
+                    )}
+                  </div>
 
                   {msg.audio && (
                     <div className="audio-player-wrapper">
@@ -492,7 +538,8 @@ function App() {
           )}
 
           {isLoading && (
-            <div className="message-row row-bot">
+            <div className="message-row bot">
+              <div className="avatar-badge">😊</div>
               <div className="message-bubble bubble-bot loading-bubble">
                 <div className="typing-indicator">
                   <span></span>
