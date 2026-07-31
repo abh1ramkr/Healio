@@ -53,10 +53,12 @@ function App() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  // Media states
+  // Media & Popup states
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [audioFile, setAudioFile] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+  const [isAudioPaused, setIsAudioPaused] = useState(false);
   const [audioTimer, setAudioTimer] = useState(0);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isRecordingVideo, setIsRecordingVideo] = useState(false);
@@ -68,6 +70,7 @@ function App() {
   const audioTimerRef = useRef(null);
   const audioInputFileRef = useRef(null);
   const videoInputFileRef = useRef(null);
+  const plusMenuRef = useRef(null);
 
   // Splash screen transition timer
   useEffect(() => {
@@ -84,16 +87,26 @@ function App() {
 
   // Audio recording timer counter
   useEffect(() => {
-    if (isRecordingAudio) {
+    if (isRecordingAudio && !isAudioPaused) {
       audioTimerRef.current = setInterval(() => {
         setAudioTimer((prev) => prev + 1);
       }, 1000);
     } else {
       clearInterval(audioTimerRef.current);
-      setAudioTimer(0);
     }
     return () => clearInterval(audioTimerRef.current);
-  }, [isRecordingAudio]);
+  }, [isRecordingAudio, isAudioPaused]);
+
+  // Close plus menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (plusMenuRef.current && !plusMenuRef.current.contains(event.target)) {
+        setShowPlusMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchHistory = async (user) => {
     const targetUser = user || currentUser;
@@ -206,7 +219,7 @@ function App() {
         text: data.response,
         emotions: data.emotions,
         audio: data.audio_base64 ? `data:audio/mp3;base64,${data.audio_base64}` : null,
-        isNew: true, // triggers typewriter typing animation
+        isNew: true, // triggers typewriter animation
       };
 
       setMessages((prev) => [...prev, userMsg, botMsg]);
@@ -263,8 +276,24 @@ function App() {
       };
       mediaRecorderRef.current.start();
       setIsRecordingAudio(true);
+      setIsAudioPaused(false);
+      setAudioTimer(0);
     } catch (error) {
       alert('Microphone access denied or unavailable.');
+    }
+  };
+
+  const pauseAudioRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.pause();
+      setIsAudioPaused(true);
+    }
+  };
+
+  const resumeAudioRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+      mediaRecorderRef.current.resume();
+      setIsAudioPaused(false);
     }
   };
 
@@ -272,6 +301,7 @@ function App() {
     if (mediaRecorderRef.current && isRecordingAudio) {
       mediaRecorderRef.current.stop();
       setIsRecordingAudio(false);
+      setIsAudioPaused(false);
     }
   };
 
@@ -317,16 +347,6 @@ function App() {
     }
     setShowVideoModal(false);
     setIsRecordingVideo(false);
-  };
-
-  const getEmotionClass = (emotionsStr) => {
-    if (!emotionsStr) return 'neutral';
-    const lower = emotionsStr.toLowerCase();
-    if (lower.includes('sadness') || lower.includes('grief') || lower.includes('remorse')) return 'sadness';
-    if (lower.includes('joy') || lower.includes('optimism') || lower.includes('amusement') || lower.includes('love')) return 'joy';
-    if (lower.includes('anger') || lower.includes('annoyance') || lower.includes('disgust')) return 'anger';
-    if (lower.includes('fear') || lower.includes('nervousness')) return 'fear';
-    return 'neutral';
   };
 
   // 1. Splash Loader
@@ -487,7 +507,7 @@ function App() {
               <div className="welcome-avatar">😊</div>
               <h2>Hello, {currentUser}! I'm HEALIO</h2>
               <p>
-                I am your empathetic mental health support companion. Feel free to talk to me via text, audio recordings, or video clips.
+                I am your empathetic mental health support companion. Feel free to talk to me via text, voice recordings, or video clips.
               </p>
               <div className="prompt-chips">
                 <button className="chip" onClick={() => handleSendText("I've been feeling a bit overwhelmed lately.")}>
@@ -511,11 +531,6 @@ function App() {
                   {msg.type === 'bot' && (
                     <div className="bot-header">
                       <span className="bot-name">HEALIO AI</span>
-                      {msg.emotions && (
-                        <span className={`emotion-badge ${getEmotionClass(msg.emotions)}`}>
-                          Detected: {msg.emotions}
-                        </span>
-                      )}
                     </div>
                   )}
 
@@ -546,7 +561,7 @@ function App() {
                   <span></span>
                   <span></span>
                 </div>
-                <span className="loading-label">Analyzing emotions & generating response...</span>
+                <span className="loading-label">HEALIO is thinking & generating response...</span>
               </div>
             </div>
           )}
@@ -573,19 +588,48 @@ function App() {
             </div>
           )}
 
-          {/* Recording Status Pill */}
-          {isRecordingAudio && (
-            <div className="recording-status-bar">
-              <span className="recording-pulse"></span>
-              Recording Audio... ({audioTimer}s)
-              <button onClick={stopAudioRecording} className="btn-stop-rec">
-                Stop & Send
-              </button>
-            </div>
-          )}
-
           {/* Main Action Bar */}
           <div className="input-action-bar">
+            {/* Left Plus Menu */}
+            <div className="plus-menu-container" ref={plusMenuRef}>
+              <button
+                type="button"
+                className={`btn-plus ${showPlusMenu ? 'active' : ''}`}
+                title="Upload Media Files"
+                onClick={() => setShowPlusMenu((prev) => !prev)}
+                disabled={isLoading || isRecordingAudio}
+              >
+                +
+              </button>
+
+              {showPlusMenu && (
+                <div className="plus-popup-menu">
+                  <button
+                    type="button"
+                    className="popup-item"
+                    onClick={() => {
+                      setShowPlusMenu(false);
+                      audioInputFileRef.current?.click();
+                    }}
+                  >
+                    <span className="popup-icon">🎵</span>
+                    <span>Upload Audio File</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="popup-item"
+                    onClick={() => {
+                      setShowPlusMenu(false);
+                      videoInputFileRef.current?.click();
+                    }}
+                  >
+                    <span className="popup-icon">🎬</span>
+                    <span>Upload Video File</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
             {/* Hidden File Inputs */}
             <input
               type="file"
@@ -612,78 +656,86 @@ function App() {
               }}
             />
 
-            {/* Media Upload Buttons */}
-            <div className="media-buttons">
-              <button
-                type="button"
-                className="btn-icon"
-                title="Upload Audio File"
-                onClick={() => audioInputFileRef.current?.click()}
-                disabled={isLoading || isRecordingAudio}
-              >
-                🎵
-              </button>
-              <button
-                type="button"
-                className="btn-icon"
-                title="Upload Video File"
-                onClick={() => videoInputFileRef.current?.click()}
-                disabled={isLoading || isRecordingAudio}
-              >
-                🎬
-              </button>
-            </div>
+            {/* Center Area: Voice Recording Bar OR Text Input */}
+            {isRecordingAudio ? (
+              <div className="voice-recording-inline-bar">
+                <div className="recording-indicator">
+                  <span className={`rec-dot ${isAudioPaused ? 'paused' : 'pulsing'}`}></span>
+                  <span className="rec-timer">
+                    {isAudioPaused ? 'Paused' : `Recording ${audioTimer}s`}
+                  </span>
+                </div>
 
-            {/* Text Input Field */}
-            <input
-              type="text"
-              className="chat-text-input"
-              placeholder="Type your message or share how you're feeling..."
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendText();
-                }
-              }}
-              disabled={isLoading || isRecordingAudio}
-            />
+                <div className="recording-controls">
+                  <button
+                    type="button"
+                    className="btn-rec-control"
+                    onClick={isAudioPaused ? resumeAudioRecording : pauseAudioRecording}
+                  >
+                    {isAudioPaused ? '▶️ Resume' : '⏸️ Pause'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-send-rec"
+                    onClick={stopAudioRecording}
+                  >
+                    ➔ Send
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  className="chat-text-input"
+                  placeholder="Type your message or share how you're feeling..."
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendText();
+                    }
+                  }}
+                  disabled={isLoading}
+                />
 
-            {/* Action Buttons */}
-            <div className="action-buttons">
-              {/* Record Audio Button */}
-              <button
-                type="button"
-                className={`btn-icon-action ${isRecordingAudio ? 'active-rec' : ''}`}
-                title={isRecordingAudio ? 'Stop Recording' : 'Record Voice Audio'}
-                onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
-                disabled={isLoading}
-              >
-                {isRecordingAudio ? '⏹️' : '🎙️'}
-              </button>
+                {/* Right Action Buttons: Camera, Mic, Send */}
+                <div className="action-buttons-right">
+                  {/* Camera Button */}
+                  <button
+                    type="button"
+                    className="btn-icon-right"
+                    title="Record Webcam Video"
+                    onClick={openVideoModal}
+                    disabled={isLoading}
+                  >
+                    📷
+                  </button>
 
-              {/* Record Video Camera Modal */}
-              <button
-                type="button"
-                className="btn-icon-action"
-                title="Record Webcam Video"
-                onClick={openVideoModal}
-                disabled={isLoading || isRecordingAudio}
-              >
-                📹
-              </button>
+                  {/* Mic Button */}
+                  <button
+                    type="button"
+                    className="btn-icon-right mic-btn"
+                    title="Record Voice Audio"
+                    onClick={startAudioRecording}
+                    disabled={isLoading}
+                  >
+                    🎙️
+                  </button>
 
-              {/* Send Button */}
-              <button
-                type="button"
-                className="btn-send"
-                onClick={() => handleSendText()}
-                disabled={isLoading || isRecordingAudio || (!inputText.trim() && !audioFile && !videoFile)}
-              >
-                ➔
-              </button>
-            </div>
+                  {/* Send Button */}
+                  <button
+                    type="button"
+                    className="btn-send-main"
+                    onClick={() => handleSendText()}
+                    disabled={isLoading || (!inputText.trim() && !audioFile && !videoFile)}
+                  >
+                    ➔
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
