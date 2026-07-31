@@ -688,7 +688,7 @@ function App() {
                 <input
                   type="text"
                   className="chat-text-input"
-                  placeholder="Type your message or share how you're feeling..."
+                  placeholder="Ask anything..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => {
