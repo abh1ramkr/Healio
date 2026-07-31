@@ -559,9 +559,9 @@ audio {
 .dot-pulse span:nth-child(1) { animation-delay: -0.32s; }
 .dot-pulse span:nth-child(2) { animation-delay: -0.16s; }
 
-/* Multi-Modal Single Pill Capsule Panel (ChatGPT-style UI) */
+/* Multi-Modal Single Pill Capsule Panel (Blended into Chat Box BG) */
 .input-control-panel {
-  padding: 12px 20px 24px 20px;
+  padding: 14px 24px 20px 24px;
   background: transparent;
   display: flex;
   flex-direction: column;
@@ -573,21 +573,23 @@ audio {
   display: flex;
   align-items: center;
   width: 100%;
-  max-width: 800px;
-  background: #171717;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  max-width: 100%;
+  background: rgba(30, 41, 59, 0.65); /* Blends into chat box background */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 9999px; /* Complete pill capsule shape */
-  padding: 6px 10px 6px 18px;
+  padding: 6px 12px 6px 18px;
   gap: 12px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
   transition: all 0.25s ease;
   position: relative;
 }
 
 .input-action-bar:focus-within {
-  border-color: rgba(255, 255, 255, 0.25);
-  background: #1e1e1e;
-  box-shadow: 0 8px 35px rgba(0, 0, 0, 0.6);
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(30, 41, 59, 0.85);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.15);
 }
 
 /* Plus Button (Far Left inside capsule) */
