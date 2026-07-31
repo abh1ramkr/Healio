@@ -20,12 +20,14 @@
 
 ## Key Features
 
-- **Multimodal Input Support**: Accepts text, uploaded audio files, live microphone voice recordings, and video uploads/webcam captures.
-- **Advanced Emotion Classification**: Utilizes a fine-tuned GoEmotions Transformer model on PyTorch to detect 28 distinct emotional states with confidence scoring.
-- **Speech-to-Text Transcription**: Powered by OpenAI's Whisper model for accurate speech transcription across audio and video inputs.
-- **Empathetic AI Conversations**: Integrates Google Gemini AI to provide empathetic, contextual mental health support tailored to the user's detected emotional state.
-- **Voice Response Generation**: Converts AI responses back into natural voice output using Text-to-Speech (gTTS).
-- **Modern React UI**: Custom glassmorphism interface featuring dynamic emotion visualizers, real-time message streaming, and responsive design.
+- **Modern Mental Wellness Platform**: Calming Deep Navy (`#0F172A`) & Soft Purple (`#7C6CFF`) design system with Google Fonts Manrope & Inter.
+- **Two-Column Authentication**: Interactive Sign In & Registration layout with 4 core feature cards and password hashing.
+- **Collapsible Wellness Sidebar**: Quick-access mood selector, daily affirmations, guided breathing sessions, and crisis support lifelines.
+- **Warm Personalized Welcome Screen**: Time-aware dynamic greetings ("Good Morning/Afternoon/Evening, {User}"), daily affirmations, and 6 large suggestion cards.
+- **Multimodal Input Support**: Text chat, audio file uploads, live microphone recording with inline pause/resume, and webcam video clips.
+- **Advanced Emotion Classification**: Powered by PyTorch & GoEmotions Transformer model detecting 28 distinct emotional states.
+- **Speech-to-Text & Text-to-Speech**: Powered by OpenAI's Whisper model and gTTS voice synthesis.
+- **Vector Chat Memory & Firebase**: Persistent user chat history stored in Firebase Firestore alongside 64-dimensional vector embeddings.
 
 ---
 

@@ -1,6 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
+// Dynamic Time-based Greeting Helper
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'Good Morning';
+  if (hour >= 12 && hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
+// Daily Affirmation Quotes
+const AFFIRMATIONS = [
+  "Take one small step today. That's enough.",
+  "Breathe deeply. You are safe, supported, and heard.",
+  "Your feelings are valid. Take all the time you need.",
+  "Be gentle with yourself today. You are doing the best you can.",
+  "Peace begins with a single conscious breath."
+];
+
 // Typewriter component for animated typing effect on new AI responses
 function TypewriterText({ text, speed = 12 }) {
   const [displayedText, setDisplayedText] = useState('');
@@ -49,12 +66,19 @@ function App() {
   const [registerSuccess, setRegisterSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Platform UI States
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedMood, setSelectedMood] = useState('😊');
+  const [dailyAffirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
+  const [showBreathingModal, setShowBreathingModal] = useState(false);
+  const [breathingText, setBreathingText] = useState('Inhale slowly...');
+
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
   // Media & Popup states
-  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [showPaperclipMenu, setShowPaperclipMenu] = useState(false);
   const [audioFile, setAudioFile] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
@@ -70,7 +94,8 @@ function App() {
   const audioTimerRef = useRef(null);
   const audioInputFileRef = useRef(null);
   const videoInputFileRef = useRef(null);
-  const plusMenuRef = useRef(null);
+  const paperclipMenuRef = useRef(null);
+  const textareaRef = useRef(null);
 
   // Splash screen transition timer
   useEffect(() => {
@@ -97,16 +122,30 @@ function App() {
     return () => clearInterval(audioTimerRef.current);
   }, [isRecordingAudio, isAudioPaused]);
 
-  // Close plus menu on outside click
+  // Close paperclip menu on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (plusMenuRef.current && !plusMenuRef.current.contains(event.target)) {
-        setShowPlusMenu(false);
+      if (paperclipMenuRef.current && !paperclipMenuRef.current.contains(event.target)) {
+        setShowPaperclipMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Guided breathing timer effect
+  useEffect(() => {
+    let breathTimer;
+    if (showBreathingModal) {
+      const phases = ['Inhale slowly...', 'Hold your breath...', 'Exhale gently...', 'Rest & relax...'];
+      let phaseIdx = 0;
+      breathTimer = setInterval(() => {
+        phaseIdx = (phaseIdx + 1) % phases.length;
+        setBreathingText(phases[phaseIdx]);
+      }, 2500);
+    }
+    return () => clearInterval(breathTimer);
+  }, [showBreathingModal]);
 
   const fetchHistory = async (user) => {
     const targetUser = user || currentUser;
@@ -355,415 +394,542 @@ function App() {
       <div className="splash-container">
         <div className="splash-logo">😊</div>
         <h1 className="splash-title">HEALIO</h1>
-        <p className="splash-subtitle">AI Multimodal Mental Health Companion</p>
+        <p className="splash-subtitle">AI Mental Wellness Companion</p>
         <div className="spinner-ring"></div>
       </div>
     );
   }
 
-  // 2. Authentication View (Login & Register)
+  // 2. Redesigned Two-Column Authentication Screen
   if (!loggedIn) {
     return (
-      <div className="login-view">
-        <div className="login-card">
-          <div className="login-header">
-            <h2>😊 Welcome to HEALIO</h2>
-            <p>Empathetic AI mental health companion</p>
+      <div className="login-page-grid">
+        {/* Left Column: Brand & Feature Showcase */}
+        <div className="login-left-brand">
+          <div className="brand-hero-logo">
+            <span className="logo-icon">😊</span>
+            <h1>HEALIO</h1>
           </div>
+          <p className="login-tagline">
+            Your AI companion for emotional wellbeing. A safe, confidential space to express how you feel.
+          </p>
 
-          {/* Auth Tab Switcher */}
-          <div className="auth-tab-bar">
-            <button
-              type="button"
-              className={`auth-tab-btn ${authMode === 'login' ? 'active' : ''}`}
-              onClick={() => {
-                setAuthMode('login');
-                setLoginError('');
-                setRegisterSuccess('');
-              }}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              className={`auth-tab-btn ${authMode === 'register' ? 'active' : ''}`}
-              onClick={() => {
-                setAuthMode('register');
-                setLoginError('');
-                setRegisterSuccess('');
-              }}
-            >
-              Register New Account
-            </button>
+          <div className="feature-cards-grid">
+            <div className="feature-card">
+              <div className="feat-icon">📊</div>
+              <h4>Mood Tracking</h4>
+              <p>Understand your emotional patterns and daily progress over time.</p>
+            </div>
+            <div className="feature-card">
+              <div className="feat-icon">🎙️</div>
+              <h4>Voice & Video Analysis</h4>
+              <p>Express yourself naturally using text, audio, or video clips.</p>
+            </div>
+            <div className="feature-card">
+              <div className="feat-icon">🧘</div>
+              <h4>Guided Exercises</h4>
+              <p>Access calming breathing and mindfulness tools whenever needed.</p>
+            </div>
+            <div className="feature-card">
+              <div className="feat-icon">🔒</div>
+              <h4>Private & Secure</h4>
+              <p>Confidential, judgment-free AI companion support 24/7.</p>
+            </div>
           </div>
+        </div>
 
-          {registerSuccess && <div className="login-success">{registerSuccess}</div>}
-          {loginError && <div className="login-error">{loginError}</div>}
+        {/* Right Column: Modern Authentication Form */}
+        <div className="login-right-panel">
+          <div className="login-card-modern">
+            <div className="auth-header">
+              <h2>Welcome to HEALIO</h2>
+              <p>Sign in or create your wellness account</p>
+            </div>
 
-          {authMode === 'login' ? (
-            <form onSubmit={handleLogin}>
-              <div className="input-group">
-                <label>Username</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Enter username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              </div>
-              <div className="input-group">
-                <label>Password</label>
-                <input
-                  type="password"
-                  className="input-field"
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <button type="submit" className="btn-primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Logging in...' : 'Sign In'}
+            {/* Auth Tab Switcher */}
+            <div className="auth-tabs">
+              <button
+                type="button"
+                className={`auth-tab ${authMode === 'login' ? 'active' : ''}`}
+                onClick={() => {
+                  setAuthMode('login');
+                  setLoginError('');
+                  setRegisterSuccess('');
+                }}
+              >
+                Sign In
               </button>
-            </form>
-          ) : (
-            <form onSubmit={handleRegister}>
-              <div className="input-group">
-                <label>Username</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Choose a username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                />
-              </div>
-              <div className="input-group">
-                <label>Password</label>
-                <input
-                  type="password"
-                  className="input-field"
-                  placeholder="Choose a password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <div className="input-group">
-                <label>Confirm Password</label>
-                <input
-                  type="password"
-                  className="input-field"
-                  placeholder="Re-enter password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-              </div>
-              <button type="submit" className="btn-primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Creating Account...' : 'Register'}
+              <button
+                type="button"
+                className={`auth-tab ${authMode === 'register' ? 'active' : ''}`}
+                onClick={() => {
+                  setAuthMode('register');
+                  setLoginError('');
+                  setRegisterSuccess('');
+                }}
+              >
+                Register New Account
               </button>
-            </form>
-          )}
+            </div>
 
-          <div className="login-demo-hint">
-            💡 Demo Credentials: Username <strong>admin</strong> | Password <strong>password</strong>
+            {registerSuccess && <div className="login-success">{registerSuccess}</div>}
+            {loginError && <div className="login-error">{loginError}</div>}
+
+            {authMode === 'login' ? (
+              <form onSubmit={handleLogin}>
+                <div className="input-group-modern">
+                  <label>Username</label>
+                  <input
+                    type="text"
+                    className="input-field-modern"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                </div>
+                <div className="input-group-modern">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    className="input-field-modern"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                <button type="submit" className="btn-primary-purple" disabled={isSubmitting}>
+                  {isSubmitting ? 'Signing In...' : 'Sign In'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister}>
+                <div className="input-group-modern">
+                  <label>Username</label>
+                  <input
+                    type="text"
+                    className="input-field-modern"
+                    placeholder="Choose a username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                </div>
+                <div className="input-group-modern">
+                  <label>Password</label>
+                  <input
+                    type="password"
+                    className="input-field-modern"
+                    placeholder="Create a password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                <div className="input-group-modern">
+                  <label>Confirm Password</label>
+                  <input
+                    type="password"
+                    className="input-field-modern"
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+                <button type="submit" className="btn-primary-purple" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating Account...' : 'Register'}
+                </button>
+              </form>
+            )}
+
+            <div className="login-demo-hint" style={{ marginTop: '20px', textAlign: 'center' }}>
+              💡 Demo Account: <strong>admin</strong> / <strong>password</strong>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // 3. Main Chat Interface
+  // 3. Main Mental Wellness Platform Interface
   return (
-    <div className="app-container">
-      {/* Header */}
-      <header className="app-header">
-        <div className="header-brand">
-          <span className="brand-icon">😊</span>
-          <span className="brand-title">HEALIO</span>
-          <span className="brand-badge">Gemini 2.0 AI</span>
+    <div className="app-platform-layout">
+      {/* Redesigned Header */}
+      <header className="header-modern">
+        <div className="header-brand-group">
+          <button
+            className="sidebar-toggle-btn"
+            title="Toggle Wellness Sidebar"
+            onClick={() => setIsSidebarOpen((prev) => !prev)}
+          >
+            ☰
+          </button>
+          <span style={{ fontSize: '24px' }}>😊</span>
+          <div className="brand-text-container">
+            <span className="brand-title-text">HEALIO</span>
+            <span className="brand-subtitle-text">AI Mental Wellness Companion</span>
+          </div>
         </div>
-        <div className="header-actions">
-          <div className="user-badge-pill">
+
+        <div className="header-user-actions">
+          <div className="user-profile-badge">
             👤 <strong>{currentUser}</strong>
           </div>
-          <div className="status-pill">
-            <span className="status-dot"></span>
-            Online
-          </div>
-          <button className="btn-secondary" onClick={() => setMessages([])}>
+          <button className="btn-nav-outline" onClick={() => setMessages([])}>
             Clear Chat
           </button>
-          <button className="btn-secondary" onClick={handleLogout}>
+          <button className="btn-nav-outline" onClick={handleLogout}>
             Logout
           </button>
         </div>
       </header>
 
-      {/* Chat Workspace */}
-      <div className="chat-workspace">
-        <div className="messages-feed">
-          {messages.length === 0 ? (
-            <div className="empty-chat-welcome">
-              <div className="welcome-avatar">😊</div>
-              <h2>Hello, {currentUser}! I'm HEALIO</h2>
-              <p>
-                I am your empathetic mental health support companion. Feel free to talk to me via text, voice recordings, or video clips.
-              </p>
-              <div className="prompt-chips">
-                <button className="chip" onClick={() => handleSendText("I've been feeling a bit overwhelmed lately.")}>
-                  "I've been feeling a bit overwhelmed..."
+      {/* Platform Body with Collapsible Sidebar & Chat */}
+      <div className="main-body-container">
+        {/* Collapsible Wellness Sidebar */}
+        <aside className={`wellness-sidebar ${isSidebarOpen ? '' : 'collapsed'}`}>
+          {/* Current Mood Selector */}
+          <div className="sidebar-box">
+            <h4>Current Mood</h4>
+            <div className="mood-buttons-grid">
+              {['😄', '😊', '😐', '😔', '😰'].map((emoji) => (
+                <button
+                  key={emoji}
+                  className={`btn-mood-emoji ${selectedMood === emoji ? 'selected' : ''}`}
+                  onClick={() => setSelectedMood(emoji)}
+                >
+                  {emoji}
                 </button>
-                <button className="chip" onClick={() => handleSendText("Can you recommend some quick breathing exercises?")}>
-                  "Recommend quick breathing exercises"
-                </button>
-                <button className="chip" onClick={() => handleSendText("I'm feeling really happy today!")}>
-                  "I'm feeling really happy today!"
-                </button>
-              </div>
+              ))}
             </div>
-          ) : (
-            messages.map((msg, idx) => (
-              <div key={idx} className={`message-row ${msg.type === 'user' ? 'user' : 'bot'}`}>
-                <div className="avatar-badge">
-                  {msg.type === 'user' ? '👤' : '😊'}
-                </div>
-                <div className={`message-bubble ${msg.type === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
-                  {msg.type === 'bot' && (
-                    <div className="bot-header">
-                      <span className="bot-name">HEALIO AI</span>
-                    </div>
-                  )}
+          </div>
 
-                  <div className="message-content">
-                    {msg.type === 'bot' && msg.isNew ? (
-                      <TypewriterText text={msg.text} speed={12} />
-                    ) : (
-                      msg.text
-                    )}
+          {/* Guided Breathing Tool Launcher */}
+          <div className="guided-breathing-card" onClick={() => setShowBreathingModal(true)}>
+            <span className="b-icon">🫁</span>
+            <div>
+              <h5>Guided Breathing</h5>
+              <p>2-minute relaxation exercise</p>
+            </div>
+          </div>
+
+          {/* Quick Affirmation Box */}
+          <div className="sidebar-box">
+            <h4>Daily Affirmation</h4>
+            <p style={{ fontSize: '12px', color: '#c7d2fe', lineHeight: '1.5', fontStyle: 'italic' }}>
+              "{dailyAffirmation}"
+            </p>
+          </div>
+
+          {/* Emergency Support Notice */}
+          <div className="emergency-support-box">
+            <h5>Immediate Support</h5>
+            <p>If you are in crisis, please call <strong>988</strong> (Lifeline) or reach out to a professional counselor.</p>
+          </div>
+        </aside>
+
+        {/* Chat Main Workspace */}
+        <main className="chat-main-area">
+          <div className="messages-scroll-feed">
+            {messages.length === 0 ? (
+              <div className="welcome-experience-container">
+                <div className="greeting-header">
+                  <h2>{getGreeting()}, {currentUser}</h2>
+                  <p>How are you feeling today? I'm here to listen without judgment. Take your time.</p>
+                </div>
+
+                <div className="affirmation-banner">
+                  ✨ "{dailyAffirmation}"
+                </div>
+
+                {/* 6 Large Clickable Suggestion Cards */}
+                <div className="large-suggestion-grid">
+                  <div
+                    className="suggestion-card-large"
+                    onClick={() => handleSendText("I've been feeling anxious today.")}
+                  >
+                    <span className="card-icon">🧘</span>
+                    <span>I've been feeling anxious today</span>
                   </div>
-
-                  {msg.audio && (
-                    <div className="audio-player-wrapper">
-                      <audio controls src={msg.audio} className="custom-audio-player" autoPlay />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-
-          {isLoading && (
-            <div className="message-row bot">
-              <div className="avatar-badge">😊</div>
-              <div className="message-bubble bubble-bot loading-bubble">
-                <div className="typing-indicator">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <span className="loading-label">HEALIO is thinking & generating response...</span>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Control & Input Bar */}
-        <div className="input-control-panel">
-          {/* File Previews Bar */}
-          {(audioFile || videoFile) && (
-            <div className="media-preview-bar">
-              {audioFile && (
-                <div className="media-tag">
-                  🎵 Audio File: {audioFile.name}
-                  <button onClick={() => setAudioFile(null)}>✕</button>
-                </div>
-              )}
-              {videoFile && (
-                <div className="media-tag">
-                  📹 Video File: {videoFile.name}
-                  <button onClick={() => setVideoFile(null)}>✕</button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Main Action Bar */}
-          <div className="input-action-bar">
-            {/* Left Plus Menu */}
-            <div className="plus-menu-container" ref={plusMenuRef}>
-              <button
-                type="button"
-                className={`btn-plus ${showPlusMenu ? 'active' : ''}`}
-                title="Upload Media Files"
-                onClick={() => setShowPlusMenu((prev) => !prev)}
-                disabled={isLoading || isRecordingAudio}
-              >
-                +
-              </button>
-
-              {showPlusMenu && (
-                <div className="plus-popup-menu">
-                  <button
-                    type="button"
-                    className="popup-item"
-                    onClick={() => {
-                      setShowPlusMenu(false);
-                      audioInputFileRef.current?.click();
-                    }}
+                  <div
+                    className="suggestion-card-large"
+                    onClick={() => handleSendText("Help me relax and calm my mind.")}
                   >
-                    <span className="popup-icon">🎵</span>
-                    <span>Upload Audio File</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="popup-item"
-                    onClick={() => {
-                      setShowPlusMenu(false);
-                      videoInputFileRef.current?.click();
-                    }}
+                    <span className="card-icon">🌊</span>
+                    <span>Help me relax</span>
+                  </div>
+                  <div
+                    className="suggestion-card-large"
+                    onClick={() => handleSendText("I can't sleep and my mind is racing.")}
                   >
-                    <span className="popup-icon">🎬</span>
-                    <span>Upload Video File</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Hidden File Inputs */}
-            <input
-              type="file"
-              accept="audio/*"
-              ref={audioInputFileRef}
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                if (e.target.files[0]) {
-                  setAudioFile(e.target.files[0]);
-                  handleSendAudioFile(e.target.files[0]);
-                }
-              }}
-            />
-            <input
-              type="file"
-              accept="video/*"
-              ref={videoInputFileRef}
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                if (e.target.files[0]) {
-                  setVideoFile(e.target.files[0]);
-                  handleSendVideoFile(e.target.files[0]);
-                }
-              }}
-            />
-
-            {/* Center Area: Voice Recording Bar OR Text Input */}
-            {isRecordingAudio ? (
-              <div className="voice-recording-inline-bar">
-                <div className="recording-indicator">
-                  <span className={`rec-dot ${isAudioPaused ? 'paused' : 'pulsing'}`}></span>
-                  <span className="rec-timer">
-                    {isAudioPaused ? 'Paused' : `Recording ${audioTimer}s`}
-                  </span>
-                </div>
-
-                <div className="recording-controls">
-                  <button
-                    type="button"
-                    className="btn-rec-control"
-                    onClick={isAudioPaused ? resumeAudioRecording : pauseAudioRecording}
+                    <span className="card-icon">🌙</span>
+                    <span>I can't sleep</span>
+                  </div>
+                  <div
+                    className="suggestion-card-large"
+                    onClick={() => handleSendText("I feel overwhelmed with everything right now.")}
                   >
-                    {isAudioPaused ? '▶️ Resume' : '⏸️ Pause'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-send-rec"
-                    onClick={stopAudioRecording}
+                    <span className="card-icon">🌿</span>
+                    <span>I feel overwhelmed</span>
+                  </div>
+                  <div
+                    className="suggestion-card-large"
+                    onClick={() => handleSendText("I had a good day and want to reflect on it!")}
                   >
-                    ➔ Send
-                  </button>
+                    <span className="card-icon">☀️</span>
+                    <span>I had a good day</span>
+                  </div>
+                  <div
+                    className="suggestion-card-large"
+                    onClick={() => setShowBreathingModal(true)}
+                  >
+                    <span className="card-icon">🫁</span>
+                    <span>Recommend breathing exercises</span>
+                  </div>
                 </div>
               </div>
             ) : (
-              <>
-                <input
-                  type="text"
-                  className="chat-text-input"
-                  placeholder="Ask anything..."
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendText();
-                    }
-                  }}
-                  disabled={isLoading}
-                />
+              messages.map((msg, idx) => (
+                <div key={idx} className={`msg-row ${msg.type === 'user' ? 'user' : 'bot'}`}>
+                  <div className="msg-avatar">
+                    {msg.type === 'user' ? '👤' : '😊'}
+                  </div>
+                  <div className={`msg-bubble ${msg.type === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
+                    {msg.type === 'bot' && (
+                      <div className="msg-bot-header">HEALIO AI</div>
+                    )}
 
-                {/* Right Action Buttons: Camera, Mic, Send */}
-                <div className="action-buttons-right">
-                  {/* Camera Button */}
-                  <button
-                    type="button"
-                    className="btn-icon-right"
-                    title="Record Webcam Video"
-                    onClick={openVideoModal}
-                    disabled={isLoading}
-                  >
-                    📷
-                  </button>
+                    <div className="msg-content">
+                      {msg.type === 'bot' && msg.isNew ? (
+                        <TypewriterText text={msg.text} speed={12} />
+                      ) : (
+                        msg.text
+                      )}
+                    </div>
 
-                  {/* Mic Button */}
-                  <button
-                    type="button"
-                    className="btn-icon-right mic-btn"
-                    title="Record Voice Audio"
-                    onClick={startAudioRecording}
-                    disabled={isLoading}
-                  >
-                    🎙️
-                  </button>
-
-                  {/* Send Button */}
-                  <button
-                    type="button"
-                    className="btn-send-main"
-                    onClick={() => handleSendText()}
-                    disabled={isLoading || (!inputText.trim() && !audioFile && !videoFile)}
-                  >
-                    ➔
-                  </button>
+                    {msg.audio && (
+                      <div className="audio-player-wrapper">
+                        <audio controls src={msg.audio} className="custom-audio-player" autoPlay />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </>
+              ))
             )}
+
+            {isLoading && (
+              <div className="msg-row bot">
+                <div className="msg-avatar">😊</div>
+                <div className="msg-bubble bubble-bot">
+                  <div className="msg-bot-header">HEALIO AI</div>
+                  <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Thinking & listening...</span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Floating Input Capsule & Attachment Popup Bar */}
+          <div className="floating-input-panel">
+            {/* Selected File Previews */}
+            {(audioFile || videoFile) && (
+              <div className="media-preview-bar">
+                {audioFile && (
+                  <div className="media-tag">
+                    🎵 Audio: {audioFile.name}
+                    <button onClick={() => setAudioFile(null)}>✕</button>
+                  </div>
+                )}
+                {videoFile && (
+                  <div className="media-tag">
+                    📹 Video: {videoFile.name}
+                    <button onClick={() => setVideoFile(null)}>✕</button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="input-capsule-bar">
+              {/* Paperclip Attachment Menu (LEFT) */}
+              <div className="paperclip-container" ref={paperclipMenuRef}>
+                <button
+                  type="button"
+                  className={`btn-paperclip ${showPaperclipMenu ? 'active' : ''}`}
+                  title="Attach Media Files"
+                  onClick={() => setShowPaperclipMenu((prev) => !prev)}
+                  disabled={isLoading || isRecordingAudio}
+                >
+                  📎
+                </button>
+
+                {showPaperclipMenu && (
+                  <div className="paperclip-popup-menu">
+                    <button
+                      type="button"
+                      className="popup-option-btn"
+                      onClick={() => {
+                        setShowPaperclipMenu(false);
+                        audioInputFileRef.current?.click();
+                      }}
+                    >
+                      <span>🎵</span>
+                      <span>Upload Audio File</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="popup-option-btn"
+                      onClick={() => {
+                        setShowPaperclipMenu(false);
+                        videoInputFileRef.current?.click();
+                      }}
+                    >
+                      <span>🎬</span>
+                      <span>Upload Video File</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Hidden File Inputs */}
+              <input
+                type="file"
+                accept="audio/*"
+                ref={audioInputFileRef}
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    setAudioFile(e.target.files[0]);
+                    handleSendAudioFile(e.target.files[0]);
+                  }
+                }}
+              />
+              <input
+                type="file"
+                accept="video/*"
+                ref={videoInputFileRef}
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    setVideoFile(e.target.files[0]);
+                    handleSendVideoFile(e.target.files[0]);
+                  }
+                }}
+              />
+
+              {/* Textarea or Voice Recording Bar */}
+              {isRecordingAudio ? (
+                <div className="voice-recording-inline-bar">
+                  <div className="recording-indicator">
+                    <span className={`rec-dot ${isAudioPaused ? 'paused' : 'pulsing'}`}></span>
+                    <span className="rec-timer">
+                      {isAudioPaused ? 'Paused' : `Recording ${audioTimer}s`}
+                    </span>
+                  </div>
+
+                  <div className="recording-controls">
+                    <button
+                      type="button"
+                      className="btn-rec-control"
+                      onClick={isAudioPaused ? resumeAudioRecording : pauseAudioRecording}
+                    >
+                      {isAudioPaused ? '▶️ Resume' : '⏸️ Pause'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-send-rec"
+                      onClick={stopAudioRecording}
+                    >
+                      ➔
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    ref={textareaRef}
+                    className="textarea-auto-expand"
+                    rows="1"
+                    placeholder="Tell me what's on your mind..."
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendText();
+                      }
+                    }}
+                    disabled={isLoading}
+                  />
+
+                  <div className="right-action-group">
+                    <button
+                      type="button"
+                      className="btn-media-icon"
+                      title="Record Webcam Video"
+                      onClick={openVideoModal}
+                      disabled={isLoading}
+                    >
+                      📷
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-media-icon"
+                      title="Record Voice Audio"
+                      onClick={startAudioRecording}
+                      disabled={isLoading}
+                    >
+                      🎙️
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-send-circular"
+                      onClick={() => handleSendText()}
+                      disabled={isLoading || (!inputText.trim() && !audioFile && !videoFile)}
+                    >
+                      ➔
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+
+      {/* Guided Breathing Exercise Modal */}
+      {showBreathingModal && (
+        <div className="breathing-modal-overlay">
+          <div className="breathing-card">
+            <h3>🫁 Guided Breathing Session</h3>
+            <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '6px' }}>Focus on your breath and relax your body.</p>
+            
+            <div className="breathing-circle-wrapper">
+              <span style={{ fontSize: '16px', fontWeight: '700', color: '#ffffff' }}>{breathingText}</span>
+            </div>
+
+            <button className="btn-primary-purple" style={{ width: 'auto', padding: '10px 28px' }} onClick={() => setShowBreathingModal(false)}>
+              Complete Session
+            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Video Recorder Modal */}
       {showVideoModal && (
-        <div className="video-preview-modal">
-          <div className="video-modal-card">
+        <div className="breathing-modal-overlay">
+          <div className="breathing-card" style={{ maxWidth: '480px' }}>
             <h3>📹 Record Video Message</h3>
-            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '15px' }}>
-              Record a short video to analyze facial expressions and voice.
-            </p>
-            <video ref={videoRef} autoPlay muted className="video-viewfinder" />
+            <video ref={videoRef} autoPlay muted style={{ width: '100%', height: '260px', borderRadius: '12px', background: '#000', margin: '15px 0', objectFit: 'cover' }} />
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
               {!isRecordingVideo ? (
-                <button className="btn-primary" style={{ width: 'auto' }} onClick={startVideoRecording}>
+                <button className="btn-primary-purple" style={{ width: 'auto' }} onClick={startVideoRecording}>
                   🔴 Start Recording
                 </button>
               ) : (
-                <button
-                  className="btn-primary"
-                  style={{ width: 'auto', background: '#ef4444' }}
-                  onClick={stopVideoRecording}
-                >
+                <button className="btn-primary-purple" style={{ width: 'auto', background: '#ef4444' }} onClick={stopVideoRecording}>
                   ⏹️ Stop & Send
                 </button>
               )}
-              <button className="btn-secondary" onClick={closeVideoModal}>
+              <button className="btn-nav-outline" onClick={closeVideoModal}>
                 Cancel
               </button>
             </div>
