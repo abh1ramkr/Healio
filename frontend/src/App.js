@@ -4,10 +4,14 @@ import './App.css';
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [currentUser, setCurrentUser] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [registerSuccess, setRegisterSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -52,12 +56,14 @@ function App() {
       clearInterval(audioTimerRef.current);
       setAudioTimer(0);
     }
-    return () => clearInterval(audioTimerRef.current);
+    return () => clearTimeout(audioTimerRef.current);
   }, [isRecordingAudio]);
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (user) => {
+    const targetUser = user || currentUser;
+    if (!targetUser) return;
     try {
-      const res = await fetch('/history');
+      const res = await fetch(`/history?username=${encodeURIComponent(targetUser)}`);
       const data = await res.json();
       if (data && data.history) {
         const loaded = [];
@@ -74,34 +80,85 @@ function App() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!username || !password) {
+    if (!username.trim() || !password.trim()) {
       setLoginError('Please enter username and password');
       return;
     }
-    setIsLoggingIn(true);
+    setIsSubmitting(true);
     setLoginError('');
+    setRegisterSuccess('');
 
     const formData = new FormData();
-    formData.append('username', username);
-    formData.append('password', password);
+    formData.append('username', username.trim());
+    formData.append('password', password.trim());
 
     try {
       const res = await fetch('/login', { method: 'POST', body: formData });
-      if (res.ok) {
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const activeUser = data.username || username.trim();
+        setCurrentUser(activeUser);
         setLoggedIn(true);
-        fetchHistory();
+        fetchHistory(activeUser);
       } else {
-        setLoginError('Invalid credentials. Use admin / password');
+        setLoginError(data.detail || 'Invalid username or password.');
       }
     } catch (error) {
       setLoginError('Connection failed. Make sure backend is running.');
     } finally {
-      setIsLoggingIn(false);
+      setIsSubmitting(false);
     }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    if (!username.trim() || !password.trim()) {
+      setLoginError('Please enter a username and password');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setLoginError('Passwords do not match');
+      return;
+    }
+    setIsSubmitting(true);
+    setLoginError('');
+    setRegisterSuccess('');
+
+    const formData = new FormData();
+    formData.append('username', username.trim());
+    formData.append('password', password.trim());
+
+    try {
+      const res = await fetch('/register', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRegisterSuccess(data.message || 'Registration successful! You can now log in.');
+        setAuthMode('login');
+        setPassword('');
+        setConfirmPassword('');
+      } else {
+        setLoginError(data.detail || 'Registration failed.');
+      }
+    } catch (error) {
+      setLoginError('Connection failed. Make sure backend is running.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setLoggedIn(false);
+    setCurrentUser('');
+    setMessages([]);
+    setPassword('');
+    setConfirmPassword('');
+    setLoginError('');
+    setRegisterSuccess('');
   };
 
   const sendRequest = async (endpoint, formData, fallbackUserText = '') => {
     setIsLoading(true);
+    formData.append('username', currentUser || 'default');
     try {
       const res = await fetch(endpoint, { method: 'POST', body: formData });
       const data = await res.json();
@@ -247,41 +304,109 @@ function App() {
     );
   }
 
-  // 2. Login View
+  // 2. Authentication View (Login & Register)
   if (!loggedIn) {
     return (
       <div className="login-view">
         <div className="login-card">
           <div className="login-header">
-            <h2>🔑 Welcome to HEALIO</h2>
-            <p>Empathetic AI support powered by Gemini</p>
+            <h2>😊 Welcome to HEALIO</h2>
+            <p>Empathetic AI mental health companion</p>
           </div>
-          <form onSubmit={handleLogin}>
-            <div className="input-group">
-              <label>Username</label>
-              <input
-                type="text"
-                className="input-field"
-                placeholder="Enter username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-            <div className="input-group">
-              <label>Password</label>
-              <input
-                type="password"
-                className="input-field"
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            {loginError && <div className="login-error">{loginError}</div>}
-            <button type="submit" className="btn-primary" disabled={isLoggingIn}>
-              {isLoggingIn ? 'Logging in...' : 'Sign In'}
+
+          {/* Auth Tab Switcher */}
+          <div className="auth-tab-bar">
+            <button
+              type="button"
+              className={`auth-tab-btn ${authMode === 'login' ? 'active' : ''}`}
+              onClick={() => {
+                setAuthMode('login');
+                setLoginError('');
+                setRegisterSuccess('');
+              }}
+            >
+              Sign In
             </button>
-          </form>
+            <button
+              type="button"
+              className={`auth-tab-btn ${authMode === 'register' ? 'active' : ''}`}
+              onClick={() => {
+                setAuthMode('register');
+                setLoginError('');
+                setRegisterSuccess('');
+              }}
+            >
+              Register New Account
+            </button>
+          </div>
+
+          {registerSuccess && <div className="login-success">{registerSuccess}</div>}
+          {loginError && <div className="login-error">{loginError}</div>}
+
+          {authMode === 'login' ? (
+            <form onSubmit={handleLogin}>
+              <div className="input-group">
+                <label>Username</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Enter username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+              <div className="input-group">
+                <label>Password</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                {isSubmitting ? 'Logging in...' : 'Sign In'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegister}>
+              <div className="input-group">
+                <label>Username</label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Choose a username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+              <div className="input-group">
+                <label>Password</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="Choose a password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <div className="input-group">
+                <label>Confirm Password</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  placeholder="Re-enter password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+              <button type="submit" className="btn-primary" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating Account...' : 'Register'}
+              </button>
+            </form>
+          )}
+
           <div className="login-demo-hint">
             💡 Demo Credentials: Username <strong>admin</strong> | Password <strong>password</strong>
           </div>
@@ -301,6 +426,9 @@ function App() {
           <span className="brand-badge">Gemini 2.0 AI</span>
         </div>
         <div className="header-actions">
+          <div className="user-badge-pill">
+            👤 <strong>{currentUser}</strong>
+          </div>
           <div className="status-pill">
             <span className="status-dot"></span>
             Online
@@ -308,7 +436,7 @@ function App() {
           <button className="btn-secondary" onClick={() => setMessages([])}>
             Clear Chat
           </button>
-          <button className="btn-secondary" onClick={() => setLoggedIn(false)}>
+          <button className="btn-secondary" onClick={handleLogout}>
             Logout
           </button>
         </div>
@@ -318,58 +446,44 @@ function App() {
       <div className="chat-workspace">
         <div className="messages-feed">
           {messages.length === 0 ? (
-            <div className="starter-prompts-view">
-              <div className="starter-icon">🌱</div>
-              <h2 className="starter-title">How are you feeling right now?</h2>
-              <p className="starter-subtitle">
-                HEALIO transcribes voice recordings, detects your emotion, and provides empathetic guidance.
+            <div className="empty-chat-welcome">
+              <div className="welcome-avatar">😊</div>
+              <h2>Hello, {currentUser}! I'm HEALIO</h2>
+              <p>
+                I am your empathetic mental health support companion. Feel free to talk to me via text, audio recordings, or video clips.
               </p>
-              <div className="prompts-grid">
-                <div
-                  className="prompt-card"
-                  onClick={() => handleSendText("I'm feeling a bit anxious and overwhelmed today.")}
-                >
-                  <h4>😰 Feeling Overwhelmed</h4>
-                  <p>"I'm feeling a bit anxious and overwhelmed today."</p>
-                </div>
-                <div
-                  className="prompt-card"
-                  onClick={() => handleSendText("Can you guide me through a quick breathing exercise?")}
-                >
-                  <h4>🧘 Need Calm & Focus</h4>
-                  <p>"Can you guide me through a quick breathing exercise?"</p>
-                </div>
-                <div
-                  className="prompt-card"
-                  onClick={() => handleSendText("I had a rough day at work and need someone to talk to.")}
-                >
-                  <h4>💼 Rough Day at Work</h4>
-                  <p>"I had a rough day at work and need someone to talk to."</p>
-                </div>
+              <div className="prompt-chips">
+                <button className="chip" onClick={() => handleSendText("I've been feeling a bit overwhelmed lately.")}>
+                  "I've been feeling a bit overwhelmed..."
+                </button>
+                <button className="chip" onClick={() => handleSendText("Can you recommend some quick breathing exercises?")}>
+                  "Recommend quick breathing exercises"
+                </button>
+                <button className="chip" onClick={() => handleSendText("I'm feeling really happy today!")}>
+                  "I'm feeling really happy today!"
+                </button>
               </div>
             </div>
           ) : (
             messages.map((msg, idx) => (
-              <div key={idx} className={`message-row ${msg.type}`}>
-                <div className="avatar-badge">{msg.type === 'user' ? '👤' : '🤖'}</div>
-                <div className="message-bubble">
-                  <p>{msg.text}</p>
-
-                  {/* Emotion Chips */}
-                  {msg.emotions && (
-                    <div className="emotion-chips-container">
-                      {msg.emotions.split(', ').map((emo, i) => (
-                        <span key={i} className={`chip-tag ${getEmotionClass(emo)}`}>
-                          ✨ {emo}
+              <div key={idx} className={`message-row ${msg.type === 'user' ? 'row-user' : 'row-bot'}`}>
+                <div className={`message-bubble ${msg.type === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
+                  {msg.type === 'bot' && (
+                    <div className="bot-header">
+                      <span className="bot-name">HEALIO AI</span>
+                      {msg.emotions && (
+                        <span className={`emotion-badge ${getEmotionClass(msg.emotions)}`}>
+                          Detected: {msg.emotions}
                         </span>
-                      ))}
+                      )}
                     </div>
                   )}
 
-                  {/* Audio Response */}
+                  <div className="message-content">{msg.text}</div>
+
                   {msg.audio && (
                     <div className="audio-player-wrapper">
-                      <audio controls src={msg.audio} autoPlay />
+                      <audio controls src={msg.audio} className="custom-audio-player" autoPlay />
                     </div>
                   )}
                 </div>
@@ -378,122 +492,124 @@ function App() {
           )}
 
           {isLoading && (
-            <div className="message-row bot">
-              <div className="avatar-badge">🤖</div>
-              <div className="message-bubble loading-bubble">
-                <span>HEALIO is processing...</span>
-                <div className="dot-pulse">
+            <div className="message-row row-bot">
+              <div className="message-bubble bubble-bot loading-bubble">
+                <div className="typing-indicator">
                   <span></span>
                   <span></span>
                   <span></span>
                 </div>
+                <span className="loading-label">Analyzing emotions & generating response...</span>
               </div>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar & Controls */}
+        {/* Control & Input Bar */}
         <div className="input-control-panel">
-          {/* File Attachment Previews */}
-          {audioFile && (
-            <div className="file-attachment-bar">
-              <span>🎵 Selected Audio: {audioFile.name}</span>
-              <button
-                className="remove-file-btn"
-                onClick={() => {
-                  setAudioFile(null);
-                  if (audioInputFileRef.current) audioInputFileRef.current.value = '';
-                }}
-              >
-                ✕
+          {/* File Previews Bar */}
+          {(audioFile || videoFile) && (
+            <div className="media-preview-bar">
+              {audioFile && (
+                <div className="media-tag">
+                  🎵 Audio File: {audioFile.name}
+                  <button onClick={() => setAudioFile(null)}>✕</button>
+                </div>
+              )}
+              {videoFile && (
+                <div className="media-tag">
+                  📹 Video File: {videoFile.name}
+                  <button onClick={() => setVideoFile(null)}>✕</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Recording Status Pill */}
+          {isRecordingAudio && (
+            <div className="recording-status-bar">
+              <span className="recording-pulse"></span>
+              Recording Audio... ({audioTimer}s)
+              <button onClick={stopAudioRecording} className="btn-stop-rec">
+                Stop & Send
               </button>
             </div>
           )}
 
-          {videoFile && (
-            <div className="file-attachment-bar">
-              <span>🎬 Selected Video: {videoFile.name}</span>
-              <button
-                className="remove-file-btn"
-                onClick={() => {
-                  setVideoFile(null);
-                  if (videoInputFileRef.current) videoInputFileRef.current.value = '';
-                }}
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          <div className="input-main-bar">
+          {/* Main Action Bar */}
+          <div className="input-action-bar">
+            {/* Hidden File Inputs */}
             <input
-              type="text"
-              className="chat-input"
-              placeholder={
-                isRecordingAudio
-                  ? `Recording Voice... (${audioTimer}s)`
-                  : 'Type your thoughts or use audio/video recording...'
-              }
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendText()}
-              disabled={isLoading || isRecordingAudio}
+              type="file"
+              accept="audio/*"
+              ref={audioInputFileRef}
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files[0]) {
+                  setAudioFile(e.target.files[0]);
+                  handleSendAudioFile(e.target.files[0]);
+                }
+              }}
+            />
+            <input
+              type="file"
+              accept="video/*"
+              ref={videoInputFileRef}
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files[0]) {
+                  setVideoFile(e.target.files[0]);
+                  handleSendVideoFile(e.target.files[0]);
+                }
+              }}
             />
 
-            <div className="media-btn-group">
-              {/* Hidden File Inputs */}
-              <input
-                type="file"
-                accept="audio/*"
-                ref={audioInputFileRef}
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  if (e.target.files[0]) {
-                    setAudioFile(e.target.files[0]);
-                    handleSendAudioFile(e.target.files[0]);
-                  }
-                }}
-              />
-              <input
-                type="file"
-                accept="video/*"
-                ref={videoInputFileRef}
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  if (e.target.files[0]) {
-                    setVideoFile(e.target.files[0]);
-                    handleSendVideoFile(e.target.files[0]);
-                  }
-                }}
-              />
-
-              {/* Upload Buttons */}
+            {/* Media Upload Buttons */}
+            <div className="media-buttons">
               <button
                 type="button"
-                className="btn-icon-action"
+                className="btn-icon"
                 title="Upload Audio File"
                 onClick={() => audioInputFileRef.current?.click()}
                 disabled={isLoading || isRecordingAudio}
               >
                 🎵
               </button>
-
               <button
                 type="button"
-                className="btn-icon-action"
+                className="btn-icon"
                 title="Upload Video File"
                 onClick={() => videoInputFileRef.current?.click()}
                 disabled={isLoading || isRecordingAudio}
               >
                 🎬
               </button>
+            </div>
 
-              {/* Record Audio Mic */}
+            {/* Text Input Field */}
+            <input
+              type="text"
+              className="chat-text-input"
+              placeholder="Type your message or share how you're feeling..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendText();
+                }
+              }}
+              disabled={isLoading || isRecordingAudio}
+            />
+
+            {/* Action Buttons */}
+            <div className="action-buttons">
+              {/* Record Audio Button */}
               <button
                 type="button"
-                className={`btn-icon-action ${isRecordingAudio ? 'recording' : ''}`}
-                title={isRecordingAudio ? 'Stop Recording' : 'Record Audio'}
+                className={`btn-icon-action ${isRecordingAudio ? 'active-rec' : ''}`}
+                title={isRecordingAudio ? 'Stop Recording' : 'Record Voice Audio'}
                 onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
                 disabled={isLoading}
               >

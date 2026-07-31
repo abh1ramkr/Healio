@@ -148,11 +148,12 @@ npm start
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
-| `/login` | `POST` | User authentication (`admin` / `password`) |
-| `/chat` | `POST` | Processes text input, returns emotion analysis & AI response |
-| `/voice` | `POST` | Transcribes uploaded/recorded audio, detects emotions & responds |
-| `/video` | `POST` | Transcribes uploaded/recorded video, detects emotions & responds |
-| `/history` | `GET` | Retrieves active session conversation history |
+| `/register` | `POST` | Registers a new user with username and password in Firebase Firestore |
+| `/login` | `POST` | Authenticates user credentials against Firebase Firestore |
+| `/chat` | `POST` | Processes text input for active user, stores vector embedding & response |
+| `/voice` | `POST` | Transcribes audio for active user, stores vector embedding & response |
+| `/video` | `POST` | Transcribes video for active user, stores vector embedding & response |
+| `/history` | `GET` | Retrieves user-specific conversation history from Firebase Firestore |
 
 ---
 

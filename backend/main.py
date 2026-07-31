@@ -1,7 +1,10 @@
 import os
 import tempfile
 import base64
+import hashlib
+import time
 from pathlib import Path
+from typing import Optional, List, Dict
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -11,9 +14,50 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from gtts import gTTS
 
+# Firebase Admin SDK
+try:
+    import firebase_admin
+    from firebase_admin import credentials, firestore
+    FIREBASE_AVAILABLE = True
+except ImportError:
+    FIREBASE_AVAILABLE = False
+
 # Load environment variables
 env_path = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(env_path)
+
+# Initialize Firebase if credential file exists
+db = None
+if FIREBASE_AVAILABLE:
+    cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH", "serviceAccountKey.json")
+    if Path(cred_path).exists():
+        try:
+            cred = credentials.Certificate(cred_path)
+            firebase_admin.initialize_app(cred)
+            db = firestore.client()
+            print(f"[Firebase] Initialized Firestore successfully using {cred_path}")
+        except Exception as e:
+            print(f"[Firebase] Error initializing Firebase: {e}")
+    else:
+        print(f"[Firebase] Credential file '{cred_path}' not found. Using local structured storage fallback.")
+
+# In-memory/local storage fallback for users and vector chat history
+fallback_users: Dict[str, Dict] = {
+    "admin": {
+        "username": "admin",
+        "password_hash": hashlib.sha256("password".encode()).hexdigest(),
+        "created_at": time.time()
+    },
+    "121": {
+        "username": "121",
+        "password_hash": hashlib.sha256("123".encode()).hexdigest(),
+        "created_at": time.time()
+    }
+}
+fallback_history: Dict[str, List[Dict]] = {}
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
 
 # Load Whisper model for audio and video transcription
 model = whisper.load_model("base")
@@ -37,8 +81,104 @@ FALLBACK_MODELS = [
     "gemini-2.0-flash-lite"
 ]
 
-# Store chat history globally
-chat_history = []
+def generate_vector_embedding(text: str) -> List[float]:
+    """
+    Generate a 64-dimensional vector embedding for text using token/char distributions and PyTorch tensor normalization.
+    """
+    if not text:
+        return [0.0] * 64
+    try:
+        encoded = tokenizer(text, max_length=64, padding="max_length", truncation=True, return_tensors="pt")
+        input_ids = encoded["input_ids"].float()
+        normalized = torch.nn.functional.normalize(input_ids, p=2, dim=1)
+        vector_list = normalized[0].tolist()
+        return [round(val, 6) for val in vector_list]
+    except Exception as e:
+        print(f"Vector embedding calculation error: {e}")
+        return [round((hash(text + str(i)) % 1000) / 1000.0, 6) for i in range(64)]
+
+def register_user_db(username: str, password: str) -> bool:
+    password_hash = hash_password(password)
+    if db is not None:
+        try:
+            doc_ref = db.collection("users").document(username)
+            if doc_ref.get().exists:
+                return False
+            doc_ref.set({
+                "username": username,
+                "password_hash": password_hash,
+                "created_at": firestore.SERVER_TIMESTAMP
+            })
+            return True
+        except Exception as e:
+            print(f"Firestore register error: {e}")
+    
+    if username in fallback_users:
+        return False
+    fallback_users[username] = {
+        "username": username,
+        "password_hash": password_hash,
+        "created_at": time.time()
+    }
+    return True
+
+def verify_user_db(username: str, password: str) -> bool:
+    password_hash = hash_password(password)
+    if db is not None:
+        try:
+            doc_ref = db.collection("users").document(username)
+            doc = doc_ref.get()
+            if doc.exists:
+                data = doc.to_dict()
+                return data.get("password_hash") == password_hash
+        except Exception as e:
+            print(f"Firestore login verify error: {e}")
+    
+    user = fallback_users.get(username)
+    if user:
+        return user["password_hash"] == password_hash
+    return False
+
+def save_chat_turn_db(username: str, user_text: str, emotions_text: str, bot_response: str):
+    vector = generate_vector_embedding(f"{user_text} {bot_response}")
+    timestamp = time.time()
+    turn_data = {
+        "user_text": user_text,
+        "emotions": emotions_text,
+        "bot_response": bot_response,
+        "vector": vector,
+        "timestamp": timestamp
+    }
+    
+    if db is not None:
+        try:
+            user_ref = db.collection("users").document(username)
+            user_ref.collection("history").add(turn_data)
+        except Exception as e:
+            print(f"Firestore save chat turn error: {e}")
+            
+    if username not in fallback_history:
+        fallback_history[username] = []
+    fallback_history[username].append(turn_data)
+
+def get_chat_history_db(username: str) -> List[tuple]:
+    history_tuples = []
+    if db is not None:
+        try:
+            user_ref = db.collection("users").document(username)
+            docs = user_ref.collection("history").order_by("timestamp").stream()
+            for doc in docs:
+                d = doc.to_dict()
+                history_tuples.append((d.get("user_text", ""), d.get("emotions", ""), d.get("bot_response", "")))
+            if history_tuples:
+                return history_tuples
+        except Exception as e:
+            print(f"Firestore get history error: {e}")
+
+    user_turns = fallback_history.get(username, [])
+    for d in user_turns:
+        history_tuples.append((d.get("user_text", ""), d.get("emotions", ""), d.get("bot_response", "")))
+    return history_tuples
 
 def transcribe_audio_video(file_path):
     if not file_path or not Path(file_path).exists():
@@ -64,9 +204,10 @@ def detect_emotion(text):
         print(f"Emotion detection error: {e}")
         return [("neutral", 1.0)]
 
-def get_gemini_response(user_input, emotions):
-    history_text = "\n".join([f"User: {h[0]}\nBot: {h[2]}" for h in chat_history[-5:]])
-    top_emotion = emotions[0][0]
+def get_gemini_response(user_input, emotions, username="default"):
+    user_history = get_chat_history_db(username)
+    history_text = "\n".join([f"User: {h[0]}\nBot: {h[2]}" for h in user_history[-5:]])
+    top_emotion = emotions[0][0] if emotions else "neutral"
 
     prompt = (
         f"You are an expert mental health consultant and therapist.\n"
@@ -111,7 +252,7 @@ def text_to_speech(text):
         print(f"Error generating speech: {e}")
         return ""
 
-def process_media(audio_file, video_file, text_input):
+def process_media(audio_file, video_file, text_input, username="default"):
     transcribed_text = ""
     if audio_file:
         transcribed_text += transcribe_audio_video(audio_file)
@@ -124,10 +265,13 @@ def process_media(audio_file, video_file, text_input):
 
     detected_emotions = detect_emotion(text)
     emotions_text = ", ".join([f"{e} ({round(c*100, 2)}%)" for e, c in detected_emotions])
-    gemini_response = get_gemini_response(text, detected_emotions)
+    gemini_response = get_gemini_response(text, detected_emotions, username)
 
-    chat_history.append((text, emotions_text, gemini_response))
-    chat_history_text = "\n".join([f"User: {h[0]}\nEmotion: {h[1]}\nBot: {h[2]}\n" for h in chat_history])
+    # Save to database with vector embedding
+    save_chat_turn_db(username, text, emotions_text, gemini_response)
+
+    user_history = get_chat_history_db(username)
+    chat_history_text = "\n".join([f"User: {h[0]}\nEmotion: {h[1]}\nBot: {h[2]}\n" for h in user_history])
 
     audio_response_file = text_to_speech(gemini_response) or ""
     return text, emotions_text, gemini_response, chat_history_text, audio_response_file
@@ -142,16 +286,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.post("/register")
+def register_endpoint(username: str = Form(...), password: str = Form(...)):
+    u = username.strip()
+    p = password.strip()
+    if not u or not p:
+        raise HTTPException(status_code=400, detail="Username and password cannot be empty")
+    success = register_user_db(u, p)
+    if success:
+        return {"success": True, "message": "Account registered successfully! You can now log in."}
+    else:
+        raise HTTPException(status_code=400, detail="Username already exists. Please choose another username.")
+
 @app.post("/login")
 def login_endpoint(username: str = Form(...), password: str = Form(...)):
-    if (username == "121" and password == "123") or (username == "admin" and password == "password"):
-        return {"success": True, "message": "Login Successful"}
+    u = username.strip()
+    p = password.strip()
+    if verify_user_db(u, p):
+        return {"success": True, "username": u, "message": "Login Successful"}
     else:
-        raise HTTPException(status_code=401, detail="Invalid Credentials")
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
 @app.post("/chat")
-def chat_endpoint(text_input: str = Form(...)):
-    text, emotions_text, gemini_response, chat_history_text, audio_path = process_media(None, None, text_input)
+def chat_endpoint(text_input: str = Form(...), username: str = Form("default")):
+    text, emotions_text, gemini_response, chat_history_text, audio_path = process_media(None, None, text_input, username)
     if audio_path:
         with open(audio_path, "rb") as f:
             audio_base64 = base64.b64encode(f.read()).decode()
@@ -166,13 +324,13 @@ def chat_endpoint(text_input: str = Form(...)):
     }
 
 @app.post("/voice")
-def voice_endpoint(audio_file: UploadFile = File(...)):
+def voice_endpoint(audio_file: UploadFile = File(...), username: str = Form("default")):
     temp_path = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp:
             temp.write(audio_file.file.read())
             temp_path = temp.name
-        text, emotions_text, gemini_response, chat_history_text, audio_path = process_media(temp_path, None, "")
+        text, emotions_text, gemini_response, chat_history_text, audio_path = process_media(temp_path, None, "", username)
         if audio_path:
             with open(audio_path, "rb") as f:
                 audio_base64 = base64.b64encode(f.read()).decode()
@@ -193,13 +351,13 @@ def voice_endpoint(audio_file: UploadFile = File(...)):
                 pass
 
 @app.post("/video")
-def video_endpoint(video_file: UploadFile = File(...)):
+def video_endpoint(video_file: UploadFile = File(...), username: str = Form("default")):
     temp_path = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp:
             temp.write(video_file.file.read())
             temp_path = temp.name
-        text, emotions_text, gemini_response, chat_history_text, audio_path = process_media(None, temp_path, "")
+        text, emotions_text, gemini_response, chat_history_text, audio_path = process_media(None, temp_path, "", username)
         if audio_path:
             with open(audio_path, "rb") as f:
                 audio_base64 = base64.b64encode(f.read()).decode()
@@ -220,8 +378,9 @@ def video_endpoint(video_file: UploadFile = File(...)):
                 pass
 
 @app.get("/history")
-def get_history():
-    return {"history": chat_history}
+def get_history(username: str = "default"):
+    user_history = get_chat_history_db(username)
+    return {"history": user_history}
 
 if __name__ == "__main__":
     import uvicorn

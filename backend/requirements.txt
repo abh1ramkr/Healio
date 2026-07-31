@@ -8,3 +8,4 @@ Pillow
 fastapi
 uvicorn
 python-multipart
+firebase-admin
