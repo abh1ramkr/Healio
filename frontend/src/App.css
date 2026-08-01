@@ -1719,15 +1719,35 @@ h1, h2, h3, h4, h5, h6 {
   color: #94A3B8 !important;
 }
 
-.login-screen-wrapper.theme-dark .glass-input {
+.login-screen-wrapper.theme-dark .glass-input,
+.theme-dark .glass-input,
+.theme-dark input[type="text"],
+.theme-dark input[type="password"] {
+  background-color: rgba(15, 23, 42, 0.85) !important;
   background: rgba(15, 23, 42, 0.85) !important;
   border-color: rgba(255, 255, 255, 0.14) !important;
   color: #F8FAFC !important;
 }
 
-.login-screen-wrapper.theme-dark .glass-input:focus {
+.login-screen-wrapper.theme-dark .glass-input:focus,
+.theme-dark .glass-input:focus,
+.theme-dark input[type="text"]:focus,
+.theme-dark input[type="password"]:focus {
+  background-color: rgba(15, 23, 42, 0.95) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
   border-color: #818CF8 !important;
   box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.3) !important;
+}
+
+/* WebKit Browser Autofill Dark Mode Override */
+.theme-dark input:-webkit-autofill,
+.theme-dark input:-webkit-autofill:hover, 
+.theme-dark input:-webkit-autofill:focus, 
+.theme-dark input:-webkit-autofill:active,
+.login-screen-wrapper.theme-dark input:-webkit-autofill {
+  -webkit-text-fill-color: #F8FAFC !important;
+  -webkit-box-shadow: 0 0 0px 1000px #0F172A inset !important;
+  transition: background-color 5000s ease-in-out 0s !important;
 }
 
 .login-screen-wrapper.theme-dark .demo-credentials-badge {
