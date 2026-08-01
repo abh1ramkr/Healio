@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { 
-  Menu, Sparkles, Search, Bell, ChevronRight, ChevronDown, 
+  Menu, Sparkles, Search, Bell, ChevronRight, ChevronDown, ArrowLeft,
   Wind, Quote, Heart, Paperclip, Image, Mic, Send, 
   Trash2, Volume2, CheckSquare, LogOut, MoreVertical,
   Sun, Moon, Smile, MessageCircle, User, BookOpen, Wrench, Settings, AlertTriangle,
-  Edit3, Plus, Calendar, Play, Square, Download, RefreshCw, Check, VolumeX
+  Edit3, Plus, Play, Download, Check, VolumeX, Frown, AlertCircle, Info, Lock, Eye, EyeOff
 } from 'lucide-react';
 
 // Dynamic Time-based Greeting Helper
@@ -186,7 +186,6 @@ function App() {
 
   // Platform UI & Sidebar States
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [selectedMoodEmoji, setSelectedMoodEmoji] = useState('😌');
   const [detectedEmotionLabel, setDetectedEmotionLabel] = useState('Calm');
   const [dailyAffirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
 
@@ -209,13 +208,13 @@ function App() {
   const [journalEntries, setJournalEntries] = useState([]);
   const [journalSearchQuery, setJournalSearchQuery] = useState('');
   const [showJournalFormModal, setShowJournalFormModal] = useState(false);
-  const [journalForm, setJournalForm] = useState({ id: null, title: '', content: '', mood: '😌 Calm' });
-  const [journalReflections, setJournalReflections] = useState({}); // { entryId: reflectionText }
+  const [journalForm, setJournalForm] = useState({ id: null, title: '', content: '', mood: 'Calm' });
+  const [journalReflections, setJournalReflections] = useState({});
   const [isReflectingId, setIsReflectingId] = useState(null);
 
   // Wellness Tools Module States
   const [activeWellnessTool, setActiveWellnessTool] = useState(null); // 'breathing' | 'grounding' | 'mood_checkin' | 'daily_tip' | 'relaxation_sounds'
-  const [breathingDuration, setBreathingDuration] = useState(2); // 2, 5, 10 minutes
+  const [breathingDuration, setBreathingDuration] = useState(2);
   const [breathingText, setBreathingText] = useState('Inhale slowly (4s)...');
   const [activeSound, setActiveSound] = useState(null);
   const [dailyTip, setDailyTip] = useState("Take a five-minute walk without your phone today to refresh your mind.");
@@ -301,7 +300,7 @@ function App() {
     }
   }, [loggedIn, currentUser]);
 
-  // --- API DATA FETCHING & PERSISTENCE HELPERS ---
+  // API Persistence Helpers
   const fetchUserSessions = async (user) => {
     try {
       const res = await fetch(`/sessions?username=${encodeURIComponent(user)}`);
@@ -322,7 +321,7 @@ function App() {
       if (res.ok && data.messages) {
         setMessages(data.messages);
         setActiveSessionId(sessionId);
-        setActiveModule(null); // Return to main chat workspace
+        setActiveModule(null);
       }
     } catch (err) {
       console.error('Error loading session messages:', err);
@@ -396,7 +395,7 @@ function App() {
         await fetch('/journal/create', { method: 'POST', body: formData });
       }
       setShowJournalFormModal(false);
-      setJournalForm({ id: null, title: '', content: '', mood: '😌 Calm' });
+      setJournalForm({ id: null, title: '', content: '', mood: 'Calm' });
       fetchUserJournal(currentUser);
     } catch (err) {
       console.error('Error saving journal:', err);
@@ -438,7 +437,6 @@ function App() {
       const res = await fetch(`/latest_mood?username=${encodeURIComponent(user)}`);
       const data = await res.json();
       if (res.ok && data.log) {
-        setSelectedMoodEmoji(data.log.mood_emoji);
         setDetectedEmotionLabel(data.log.mood_label);
       }
     } catch (err) {
@@ -446,13 +444,12 @@ function App() {
     }
   };
 
-  const handleMoodCheckin = async (emoji, label) => {
-    setSelectedMoodEmoji(emoji);
+  const handleMoodCheckin = async (label) => {
     setDetectedEmotionLabel(label);
     try {
       const formData = new FormData();
       formData.append('username', currentUser);
-      formData.append('mood_emoji', emoji);
+      formData.append('mood_emoji', label);
       formData.append('mood_label', label);
       await fetch('/mood_checkin', { method: 'POST', body: formData });
       setActiveWellnessTool(null);
@@ -542,7 +539,7 @@ function App() {
     }
   };
 
-  // Auth Submit Handlers
+  // Auth Handlers
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
@@ -639,13 +636,11 @@ function App() {
     fetchUserSessions(currentUser);
   };
 
-  // Optimistically displays user message FIRST, then calls backend
   const sendRequest = async (endpoint, formData, userText) => {
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsgId = `user_${Date.now()}_${Math.random()}`;
     const userMsg = { id: userMsgId, type: 'user', text: userText, timestamp: timeStr, isNew: false };
 
-    // 1. Append user message IMMEDIATELY to UI
     setMessages((prev) => [...prev, userMsg]);
     setTextInput('');
     setIsLoading(true);
@@ -663,12 +658,10 @@ function App() {
         setActiveSessionId(data.session_id);
       }
 
-      // Auto-detect emotion and update current mood in sidebar
       if (data.emotions) {
         setDetectedEmotionLabel(mapEmotionToMoodLabel(data.emotions));
       }
 
-      // Append Bot Message
       const botMsgId = `bot_${Date.now()}_${Math.random()}`;
       const botMsg = {
         id: botMsgId,
@@ -706,7 +699,7 @@ function App() {
     if (!file) return;
     const formData = new FormData();
     formData.append('audio_file', file);
-    sendRequest('/voice', formData, `🎙️ Audio Note (${file.name})`);
+    sendRequest('/voice', formData, `Audio Note (${file.name})`);
     setShowUploadPopup(false);
   };
 
@@ -715,7 +708,7 @@ function App() {
     if (!file) return;
     const formData = new FormData();
     formData.append('video_file', file);
-    sendRequest('/video', formData, `📹 Video Note (${file.name})`);
+    sendRequest('/video', formData, `Video Note (${file.name})`);
     setShowUploadPopup(false);
   };
 
@@ -730,7 +723,7 @@ function App() {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
         const formData = new FormData();
         formData.append('audio_file', audioBlob, 'mic_recording.wav');
-        await sendRequest('/voice', formData, '🎙️ Voice Message');
+        await sendRequest('/voice', formData, 'Voice Message');
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -865,7 +858,7 @@ function App() {
               <div className="glass-input-group">
                 <label>Password</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
+                  <span className="input-icon"><Lock size={16} /></span>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     className="glass-input"
@@ -879,7 +872,7 @@ function App() {
                     className="btn-toggle-password"
                     onClick={() => setShowPassword((prev) => !prev)}
                   >
-                    {showPassword ? '🙈' : '👁️'}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
@@ -945,7 +938,7 @@ function App() {
               <div className="glass-input-group">
                 <label>Password</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
+                  <span className="input-icon"><Lock size={16} /></span>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     className="glass-input"
@@ -959,7 +952,7 @@ function App() {
                     className="btn-toggle-password"
                     onClick={() => setShowPassword((prev) => !prev)}
                   >
-                    {showPassword ? '🙈' : '👁️'}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </div>
@@ -967,7 +960,7 @@ function App() {
               <div className="glass-input-group">
                 <label>Confirm Password</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
+                  <span className="input-icon"><Lock size={16} /></span>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     className="glass-input"
@@ -1001,7 +994,7 @@ function App() {
           )}
 
           <div className="demo-credentials-badge">
-            💡 Demo Account: <strong>admin</strong> / <strong>password</strong>
+            <Info size={14} className="info-icon" /> Demo Account: <strong>admin</strong> / <strong>password</strong>
           </div>
         </div>
       </div>
@@ -1116,14 +1109,14 @@ function App() {
         <aside className={`wellness-sidebar ${isSidebarOpen ? '' : 'collapsed'}`}>
           <div className="sidebar-section-title">WELLNESS OVERVIEW</div>
 
-          {/* Current Mood Card */}
+          {/* Current Mood Card with Outline Icon */}
           <div className="sidebar-box mood-card-floating">
             <div className="mood-orb-wrapper">
               <div className="ambient-mood-orb"></div>
             </div>
             <div className="mood-card-info">
               <span className="card-mini-label">Current Mood</span>
-              <strong className="card-main-title">{selectedMoodEmoji} {detectedEmotionLabel || 'Calm'}</strong>
+              <strong className="card-main-title">{detectedEmotionLabel || 'Calm'}</strong>
               <span className="card-timestamp">Last updated • Just now</span>
             </div>
           </div>
@@ -1225,8 +1218,12 @@ function App() {
             {activeModule === 'chat_history' && (
               <div className="module-view-container animate-fade-in">
                 <div className="module-header-bar">
+                  <button className="btn-glass-back" onClick={() => setActiveModule(null)} title="Back to Chat">
+                    <ArrowLeft size={16} />
+                    <span>Back to Chat</span>
+                  </button>
                   <div className="module-title-group">
-                    <MessageCircle size={24} className="module-icon purple" />
+                    <MessageCircle size={22} className="module-icon purple" />
                     <div>
                       <h2>Chat History</h2>
                       <p>Revisit and continue your previous conversations with HEALIO</p>
@@ -1320,8 +1317,12 @@ function App() {
             {activeModule === 'journal' && (
               <div className="module-view-container animate-fade-in">
                 <div className="module-header-bar">
+                  <button className="btn-glass-back" onClick={() => setActiveModule(null)} title="Back to Chat">
+                    <ArrowLeft size={16} />
+                    <span>Back to Chat</span>
+                  </button>
                   <div className="module-title-group">
-                    <BookOpen size={24} className="module-icon green" />
+                    <BookOpen size={22} className="module-icon green" />
                     <div>
                       <h2>Personal Wellness Journal</h2>
                       <p>Privately record your thoughts, reflections, and emotional state</p>
@@ -1330,7 +1331,7 @@ function App() {
                   <button
                     className="btn-glass-action green"
                     onClick={() => {
-                      setJournalForm({ id: null, title: '', content: '', mood: '😌 Calm' });
+                      setJournalForm({ id: null, title: '', content: '', mood: 'Calm' });
                       setShowJournalFormModal(true);
                     }}
                   >
@@ -1357,7 +1358,7 @@ function App() {
                       <button
                         className="btn-glass-primary inline"
                         onClick={() => {
-                          setJournalForm({ id: null, title: '', content: '', mood: '😌 Calm' });
+                          setJournalForm({ id: null, title: '', content: '', mood: 'Calm' });
                           setShowJournalFormModal(true);
                         }}
                       >
@@ -1424,8 +1425,12 @@ function App() {
             {activeModule === 'wellness_tools' && (
               <div className="module-view-container animate-fade-in">
                 <div className="module-header-bar">
+                  <button className="btn-glass-back" onClick={() => setActiveModule(null)} title="Back to Chat">
+                    <ArrowLeft size={16} />
+                    <span>Back to Chat</span>
+                  </button>
                   <div className="module-title-group">
-                    <Wrench size={24} className="module-icon purple" />
+                    <Wrench size={22} className="module-icon purple" />
                     <div>
                       <h2>Wellness Tools</h2>
                       <p>Quick self-help mindfulness exercises and relaxing soundscapes</p>
@@ -1491,8 +1496,12 @@ function App() {
             {activeModule === 'settings' && (
               <div className="module-view-container animate-fade-in">
                 <div className="module-header-bar">
+                  <button className="btn-glass-back" onClick={() => setActiveModule(null)} title="Back to Chat">
+                    <ArrowLeft size={16} />
+                    <span>Back to Chat</span>
+                  </button>
                   <div className="module-title-group">
-                    <Settings size={24} className="module-icon slate" />
+                    <Settings size={22} className="module-icon slate" />
                     <div>
                       <h2>Settings & Preferences</h2>
                       <p>Manage your account, AI behavior, theme, and privacy preferences</p>
@@ -1622,7 +1631,7 @@ function App() {
                 <div className="welcome-unified-wrapper">
                   <div className="chat-welcome-banner">
                     <h2>
-                      {getGreeting()}, <span className="highlight-username">{currentUser}</span> ✨
+                      {getGreeting()}, <span className="highlight-username">{currentUser}</span>
                     </h2>
                     <h3>How are you feeling today?</h3>
                     <p>I'm here to listen, support, and help you feel better.</p>
@@ -1893,7 +1902,7 @@ function App() {
               <div className="glass-input-group">
                 <label>Optional Mood</label>
                 <div className="pill-options-group">
-                  {['😊 Happy', '😔 Sad', '😟 Anxious', '😌 Calm', '😴 Tired'].map((m) => (
+                  {['Happy', 'Sad', 'Anxious', 'Calm', 'Tired'].map((m) => (
                     <button
                       type="button"
                       key={m}
@@ -1935,7 +1944,6 @@ function App() {
       {activeWellnessTool && (
         <div className="warning-modal-overlay" onClick={() => { setActiveWellnessTool(null); ambientSynth.stop(); }}>
           <div className="wellness-tool-modal-card" onClick={(e) => e.stopPropagation()}>
-            {/* Tool 1: Guided Breathing */}
             {activeWellnessTool === 'breathing' && (
               <div className="tool-modal-content">
                 <h3>Guided Breathing Exercise</h3>
@@ -1963,7 +1971,6 @@ function App() {
               </div>
             )}
 
-            {/* Tool 2: 5-4-3-2-1 Grounding Exercise */}
             {activeWellnessTool === 'grounding' && (
               <div className="tool-modal-content">
                 <h3>5-4-3-2-1 Grounding Technique</h3>
@@ -2006,7 +2013,6 @@ function App() {
               </div>
             )}
 
-            {/* Tool 3: Mood Check-In */}
             {activeWellnessTool === 'mood_checkin' && (
               <div className="tool-modal-content">
                 <h3>Mood Check-In</h3>
@@ -2014,19 +2020,19 @@ function App() {
 
                 <div className="mood-checkin-grid">
                   {[
-                    { emoji: '😄', label: 'Happy' },
-                    { emoji: '😌', label: 'Calm' },
-                    { emoji: '😔', label: 'Sad' },
-                    { emoji: '😰', label: 'Anxious' },
-                    { emoji: '😐', label: 'Neutral' },
-                    { emoji: '😴', label: 'Tired' },
+                    { label: 'Happy', icon: <Smile size={24} /> },
+                    { label: 'Calm', icon: <Sparkles size={24} /> },
+                    { label: 'Sad', icon: <Frown size={24} /> },
+                    { label: 'Anxious', icon: <AlertCircle size={24} /> },
+                    { label: 'Neutral', icon: <User size={24} /> },
+                    { label: 'Tired', icon: <Moon size={24} /> },
                   ].map((item) => (
                     <button
                       key={item.label}
                       className="mood-select-btn"
-                      onClick={() => handleMoodCheckin(item.emoji, item.label)}
+                      onClick={() => handleMoodCheckin(item.label)}
                     >
-                      <span className="emoji">{item.emoji}</span>
+                      <div className="icon-circle">{item.icon}</div>
                       <span className="label">{item.label}</span>
                     </button>
                   ))}
@@ -2034,7 +2040,6 @@ function App() {
               </div>
             )}
 
-            {/* Tool 4: Daily Wellness Tip */}
             {activeWellnessTool === 'daily_tip' && (
               <div className="tool-modal-content">
                 <Heart size={36} color="#ec4899" style={{ margin: '0 auto 12px auto' }} />
@@ -2046,7 +2051,6 @@ function App() {
               </div>
             )}
 
-            {/* Tool 5: Relaxation Sounds */}
             {activeWellnessTool === 'relaxation_sounds' && (
               <div className="tool-modal-content">
                 <Volume2 size={36} color="#6366f1" style={{ margin: '0 auto 12px auto' }} />
@@ -2055,10 +2059,10 @@ function App() {
 
                 <div className="soundscapes-grid">
                   {[
-                    { id: 'rain', name: 'Rain 🌧️' },
-                    { id: 'ocean', name: 'Ocean Waves 🌊' },
-                    { id: 'forest', name: 'Forest 🌲' },
-                    { id: 'whitenoise', name: 'White Noise 💨' },
+                    { id: 'rain', name: 'Rain', icon: <Wind size={16} /> },
+                    { id: 'ocean', name: 'Ocean Waves', icon: <Sparkles size={16} /> },
+                    { id: 'forest', name: 'Forest', icon: <BookOpen size={16} /> },
+                    { id: 'whitenoise', name: 'White Noise', icon: <Volume2 size={16} /> },
                   ].map((s) => (
                     <button
                       key={s.id}
@@ -2073,7 +2077,7 @@ function App() {
                         }
                       }}
                     >
-                      <span>{s.name}</span>
+                      <div className="btn-label-group">{s.icon} <span>{s.name}</span></div>
                       {activeSound === s.id ? <VolumeX size={16} /> : <Play size={16} />}
                     </button>
                   ))}
