@@ -81,51 +81,207 @@ FALLBACK_MODELS = [
     "gemini-pro"
 ]
 
+def generate_vector_embedding(text: str) -> List[float]:
+    if not text:
+        return [0.0] * 64
+    try:
+        encoded = tokenizer(text, max_length=64, padding="max_length", truncation=True, return_tensors="pt")
+        input_ids = encoded["input_ids"].float()
+        normalized = torch.nn.functional.normalize(input_ids, p=2, dim=1)
+        vector_list = normalized[0].tolist()
+        return [round(val, 6) for val in vector_list]
+    except Exception as e:
+        print(f"Vector embedding calculation error: {e}")
+        return [round((hash(text + str(i)) % 1000) / 1000.0, 6) for i in range(64)]
+
+def register_user_db(username: str, password: str) -> bool:
+    password_hash = hash_password(password)
+    if db is not None:
+        try:
+            doc_ref = db.collection("users").document(username)
+            if doc_ref.get().exists:
+                return False
+            doc_ref.set({
+                "username": username,
+                "password_hash": password_hash,
+                "created_at": firestore.SERVER_TIMESTAMP
+            })
+            return True
+        except Exception as e:
+            print(f"Firestore register error: {e}")
+    
+    if username in fallback_users:
+        return False
+    fallback_users[username] = {
+        "username": username,
+        "password_hash": password_hash,
+        "created_at": time.time()
+    }
+    return True
+
+def verify_user_db(username: str, password: str) -> bool:
+    password_hash = hash_password(password)
+    if db is not None:
+        try:
+            doc_ref = db.collection("users").document(username)
+            doc = doc_ref.get()
+            if doc.exists:
+                data = doc.to_dict()
+                return data.get("password_hash") == password_hash
+        except Exception as e:
+            print(f"Firestore login verify error: {e}")
+    
+    user = fallback_users.get(username)
+    if user:
+        return user["password_hash"] == password_hash
+    return False
+
+def save_chat_turn_db(username: str, user_text: str, emotions_text: str, bot_response: str):
+    vector = generate_vector_embedding(f"{user_text} {bot_response}")
+    timestamp = time.time()
+    turn_data = {
+        "user_text": user_text,
+        "emotions": emotions_text,
+        "bot_response": bot_response,
+        "vector": vector,
+        "timestamp": timestamp
+    }
+    
+    if db is not None:
+        try:
+            user_ref = db.collection("users").document(username)
+            user_ref.collection("history").add(turn_data)
+        except Exception as e:
+            print(f"Firestore save chat turn error: {e}")
+            
+    if username not in fallback_history:
+        fallback_history[username] = []
+    fallback_history[username].append(turn_data)
+
+def get_chat_history_db(username: str) -> List[tuple]:
+    history_tuples = []
+    if db is not None:
+        try:
+            user_ref = db.collection("users").document(username)
+            docs = user_ref.collection("history").order_by("timestamp").stream()
+            for doc in docs:
+                d = doc.to_dict()
+                history_tuples.append((d.get("user_text", ""), d.get("emotions", ""), d.get("bot_response", "")))
+            if history_tuples:
+                return history_tuples
+        except Exception as e:
+            print(f"Firestore get history error: {e}")
+
+    user_turns = fallback_history.get(username, [])
+    for d in user_turns:
+        history_tuples.append((d.get("user_text", ""), d.get("emotions", ""), d.get("bot_response", "")))
+    return history_tuples
+
+import random
+
+try:
+    import google.generativeai as genai
+    GENAI_AVAILABLE = True
+except ImportError:
+    GENAI_AVAILABLE = False
+
 def generate_dynamic_empathetic_response(user_input: str, emotions: list) -> str:
     top_emotion = emotions[0][0] if emotions else "neutral"
     user_lower = user_input.lower()
 
-    if "sleep" in user_lower or "insomnia" in user_lower or "night" in user_lower or "bed" in user_lower or "racing" in user_lower:
-        return (
-            f"I hear how exhausting it is when you can't sleep and your thoughts won't slow down. "
-            f"When feeling {top_emotion}, try putting away screens and practicing 4-7-8 breathing: inhale for 4s, hold for 7s, and exhale for 8s. "
-            f"Would you like me to guide you through a quick relaxation exercise right now?"
-        )
-    elif "job" in user_lower or "work" in user_lower or "career" in user_lower or "interview" in user_lower or "boss" in user_lower or "hired" in user_lower:
-        return (
-            f"Career pressures and job uncertainty can feel heavy. It is completely natural to feel {top_emotion} under work-related stress. "
-            f"Remember to break big challenges into small, manageable steps today. Take a short pause to stretch or step outside for fresh air. "
-            f"What specific aspect of work or job search is weighing on you most right now?"
-        )
+    # Dynamic variations pool
+    openers = [
+        f"I hear you, and I appreciate you opening up about this.",
+        f"Thank you for sharing how you feel with me. Experiencing {top_emotion} is completely valid.",
+        f"I hear how much weight this is placing on your mind right now.",
+        f"Taking a moment to express what you're going through takes real courage."
+    ]
+    opener = random.choice(openers)
+
+    if "corporate" in user_lower or "job" in user_lower or "work" in user_lower or "career" in user_lower or "interview" in user_lower or "hired" in user_lower:
+        advice_options = [
+            f"The job market and career pursuit can feel deeply frustrating when results take time. "
+            f"When dealing with {top_emotion}, it's helpful to separate your personal worth from the hiring process. "
+            f"Focus on one small action today—whether updating a single skill or taking a restful break. "
+            f"What specific role or field are you aiming for, and how can I help you prepare or unwind?",
+
+            f"Searching for a role and facing setbacks can feel emotionally draining. "
+            f"Remember that your perseverance is commendable, even when it feels unrecognized. "
+            f"Try breaking your job search into 30-minute daily blocks so it doesn't consume your entire emotional energy. "
+            f"How are you managing your daily routine and stress while applying?"
+        ]
+        return f"{opener} {random.choice(advice_options)}"
+
+    elif "sleep" in user_lower or "insomnia" in user_lower or "night" in user_lower or "bed" in user_lower or "racing" in user_lower:
+        advice_options = [
+            f"Rest is so vital, yet a racing mind makes sleep feel impossible. "
+            f"When feeling {top_emotion} at night, try writing down all your thoughts on paper to clear your mental queue, then practice 4-7-8 breathing. "
+            f"Would you like to try a guided breathing session with me right now?",
+
+            f"Struggling with sleep can affect every part of your day. "
+            f"Creating a soothing, low-light routine 30 minutes before bed can help signal your body to relax. "
+            f"What time do you usually try to sleep, and what thoughts tend to keep you awake?"
+        ]
+        return f"{opener} {random.choice(advice_options)}"
+
     elif "family" in user_lower or "relationship" in user_lower or "friend" in user_lower or "parent" in user_lower or "partner" in user_lower or "home" in user_lower:
-        return (
-            f"Family and personal relationships carry deep emotional weight. Navigating these situations often brings up feelings of {top_emotion}. "
-            f"Giving yourself space to process your feelings and boundaries is very important. "
-            f"How are you taking care of your own emotional needs while dealing with family or personal matters?"
-        )
+        advice_options = [
+            f"Family dynamics and personal relationships touch our deepest emotions. "
+            f"It is natural to feel {top_emotion} when communication or expectations clash. "
+            f"Setting gentle emotional boundaries is essential for your well-being. "
+            f"How can you give yourself a little space to recharge today?",
+
+            f"Navigating relationship complexities requires patience with yourself above all. "
+            f"Remember that you can control your responses and self-care, even when you can't control others' actions. "
+            f"Would you like to talk more about what happened?"
+        ]
+        return f"{opener} {random.choice(advice_options)}"
+
     elif "anxious" in user_lower or "overwhelmed" in user_lower or "panic" in user_lower or "stress" in user_lower or "worry" in user_lower:
-        return (
-            f"I hear you. Feeling overwhelmed or anxious can make everything feel intense. "
-            f"Let's ground ourselves together: name 3 things you can see around you right now, and take one slow, deep breath. "
-            f"You don't have to solve everything today—just focus on this present moment. How does your body feel right now?"
-        )
+        advice_options = [
+            f"Feeling overwhelmed or anxious can make every small task feel like a mountain. "
+            f"Let's practice the 5-4-3-2-1 grounding exercise: look around and name 5 things you can see, 4 you can touch, and 3 you can hear. "
+            f"How does your body feel right now?",
+
+            f"Anxiety often tries to convince us that we have to fix everything immediately. "
+            f"Give yourself permission to pause. You only need to navigate this single present moment. "
+            f"What is one tiny task we can check off or set aside to give you relief?"
+        ]
+        return f"{opener} {random.choice(advice_options)}"
+
     elif "good" in user_lower or "happy" in user_lower or "great" in user_lower or "excited" in user_lower or "accomplished" in user_lower:
-        return (
-            f"I am so glad to hear that! Celebrating moments of positivity and {top_emotion} is a wonderful way to build mental resilience. "
-            f"What was a highlight or favorite part of your experience today?"
-        )
+        advice_options = [
+            f"I am so glad to hear a positive update! Celebrating moments of {top_emotion} is a wonderful way to build lasting resilience. "
+            f"What was a highlight or favorite part of your experience today?",
+
+            f"That is fantastic news! Taking time to savor good experiences helps reinforce emotional strength. "
+            f"How did you achieve this, and how can we celebrate it?"
+        ]
+        return f"{opener} {random.choice(advice_options)}"
+
     elif "sad" in user_lower or "lonely" in user_lower or "cry" in user_lower or "depressed" in user_lower or "hurt" in user_lower:
-        return (
-            f"I'm really sorry you're feeling down. Experiencing {top_emotion} is tough, but please know you don't have to carry it all by yourself. "
-            f"Be extra gentle with yourself today—maybe grab a warm drink or listen to comforting music. "
-            f"What is something small that usually brings you comfort when you feel this way?"
-        )
+        advice_options = [
+            f"I'm really sorry you're carrying feelings of sadness. Experiencing {top_emotion} is heavy, but you don't have to face it alone. "
+            f"Treat yourself with extra tenderness today. "
+            f"What is something small and comforting you can do for yourself right now?",
+
+            f"Sadness can make us feel isolated, but your feelings are valid and worth honoring. "
+            f"Take things one hour at a time. I'm here to listen whenever you want to share. "
+            f"Is there a friend, family member, or activity that usually helps comfort you?"
+        ]
+        return f"{opener} {random.choice(advice_options)}"
+
     else:
-        return (
-            f"Thank you for sharing that with me. I hear that you're sensing {top_emotion} around this situation ({user_input[:40]}...). "
-            f"It takes courage to express how you feel. Take a deep breath and give yourself credit for reaching out. "
-            f"Can you tell me a bit more about what's been happening so I can support you best?"
-        )
+        advice_options = [
+            f"Navigating this with a sense of {top_emotion} shows how deeply you care about your situation. "
+            f"Take a deep breath and remind yourself that it's okay to feel this way. "
+            f"Could you share a little more context about what led to this so I can support you best?",
+
+            f"Processing these thoughts is an important step in your mental wellness journey. "
+            f"Whatever you are experiencing right now, you are safe to express it here without judgment. "
+            f"How are you feeling in your body at this moment?"
+        ]
+        return f"{opener} {random.choice(advice_options)}"
 
 def get_gemini_response(user_input, emotions, username="default"):
     user_history = get_chat_history_db(username)
@@ -133,18 +289,34 @@ def get_gemini_response(user_input, emotions, username="default"):
     top_emotion = emotions[0][0] if emotions else "neutral"
 
     prompt = (
-        f"You are an expert mental health consultant and therapist.\n"
+        f"You are an expert mental health consultant and therapist named HEALIO.\n"
         f"Chat History:\n{history_text}\n\n"
-        f"The user is experiencing the following emotion: {top_emotion}.\n"
-        f"User said: '{user_input}'\n\n"
-        f"Your job is to respond as a caring, professional mental health consultant.\n"
-        f"- Address the user's emotion and situation directly.\n"
-        f"- Offer practical, evidence-based advice, coping strategies, or exercises for their emotional state.\n"
-        f"- Ask a thoughtful follow-up question to encourage further conversation.\n"
-        f"- Be empathetic, supportive, and never judgmental.\n"
-        f"- Keep your response concise and actionable.\n"
+        f"The user is experiencing the emotion: {top_emotion}.\n"
+        f"User input: '{user_input}'\n\n"
+        f"Respond as a deeply caring, empathetic mental health companion:\n"
+        f"1. Acknowledge and validate their emotion directly.\n"
+        f"2. Offer tailored, actionable mental wellness coping advice or exercises relevant to their exact situation.\n"
+        f"3. End with a gentle, thoughtful follow-up question.\n"
+        f"Keep the tone warm, soothing, professional, and concise (2-4 sentences).\n"
     )
 
+    # 1. Try official google-generativeai SDK if available
+    if GENAI_AVAILABLE and API_KEY and len(API_KEY) > 10:
+        try:
+            genai.configure(api_key=API_KEY)
+            for m_name in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-pro"]:
+                try:
+                    g_model = genai.GenerativeModel(m_name)
+                    res = g_model.generate_content(prompt)
+                    if res and res.text and len(res.text.strip()) > 10:
+                        return res.text.strip()
+                except Exception as inner_e:
+                    print(f"GenAI SDK model {m_name} error: {inner_e}")
+                    continue
+        except Exception as e:
+            print(f"GenAI SDK config error: {e}")
+
+    # 2. Try REST API endpoints as secondary LLM fallback
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     headers = {"Content-Type": "application/json"}
 
@@ -152,7 +324,7 @@ def get_gemini_response(user_input, emotions, username="default"):
         for model_name in FALLBACK_MODELS:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={API_KEY}"
             try:
-                response = requests.post(url, headers=headers, json=payload, timeout=12)
+                response = requests.post(url, headers=headers, json=payload, timeout=10)
                 if response.status_code == 200:
                     response_data = response.json()
                     if 'candidates' in response_data and response_data['candidates']:
@@ -160,20 +332,34 @@ def get_gemini_response(user_input, emotions, username="default"):
                         if candidate_text and len(candidate_text.strip()) > 10:
                             return candidate_text.strip()
             except Exception as e:
-                print(f"Gemini API model {model_name} error: {e}")
+                print(f"Gemini REST API model {model_name} error: {e}")
                 continue
 
-    # Intelligent dynamic fallback when API key is unconfigured or rate-limited
+    # 3. Rich, dynamic contextual fallback generator
     return generate_dynamic_empathetic_response(user_input, emotions)
 
-def text_to_speech(text):
+def detect_emotion(text):
+    if not text or not text.strip():
+        return [("neutral", 1.0)]
     try:
-        tts = gTTS(text=text, lang="en")
-        temp_audio_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
-        tts.save(temp_audio_file.name)
-        return temp_audio_file.name
+        inputs = tokenizer(text, return_tensors="pt")
+        outputs = emotion_model(**inputs)
+        probs = torch.softmax(outputs.logits, dim=-1)
+        top_emotions = torch.topk(probs, k=3)
+        detected_emotions = [(emotion_labels[i], float(probs[0][i])) for i in top_emotions.indices[0] if float(probs[0][i]) > 0.05]
+        return detected_emotions if detected_emotions else [("neutral", 1.0)]
     except Exception as e:
-        print(f"Error generating speech: {e}")
+        print(f"Emotion detection error: {e}")
+        return [("neutral", 1.0)]
+
+def transcribe_audio_video(file_path):
+    if not file_path or not Path(file_path).exists():
+        return ""
+    try:
+        result = model.transcribe(str(file_path))
+        return result["text"].strip()
+    except Exception as e:
+        print(f"Transcription error: {e}")
         return ""
 
 def process_media(audio_file, video_file, text_input, username="default"):
@@ -199,6 +385,16 @@ def process_media(audio_file, video_file, text_input, username="default"):
 
     audio_response_file = text_to_speech(gemini_response) or ""
     return text, emotions_text, gemini_response, chat_history_text, audio_response_file
+
+def text_to_speech(text):
+    try:
+        tts = gTTS(text=text, lang="en")
+        temp_audio_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp3")
+        tts.save(temp_audio_file.name)
+        return temp_audio_file.name
+    except Exception as e:
+        print(f"Error generating speech: {e}")
+        return ""
 
 app = FastAPI()
 
@@ -308,9 +504,6 @@ def get_history(username: str = "default"):
 
 @app.post("/delete_message")
 def delete_message_endpoint(username: str = Form("default"), index: int = Form(...)):
-    """
-    Deletes a specific turn (by index) from the user's chat history in Firestore or local fallback storage.
-    """
     if db is not None:
         try:
             user_ref = db.collection("users").document(username)
@@ -329,9 +522,6 @@ def delete_message_endpoint(username: str = Form("default"), index: int = Form(.
 
 @app.post("/clear_history")
 def clear_history_endpoint(username: str = Form("default")):
-    """
-    Clears all chat history for a specific user.
-    """
     if db is not None:
         try:
             user_ref = db.collection("users").document(username)
