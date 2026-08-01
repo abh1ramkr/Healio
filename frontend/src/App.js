@@ -876,81 +876,83 @@ function App() {
         {/* Main Workspace Glass Container */}
         <main className="chat-main-area">
           <div className="workspace-glass-card">
-            {/* Header Greeting Banner */}
-            <div className="chat-welcome-banner">
-              <h2>
-                {getGreeting()}, <span className="highlight-username">{currentUser}</span> ✨
-              </h2>
-              <h3>How are you feeling today?</h3>
-              <p>I'm here to listen, support, and help you feel better.</p>
-            </div>
+            {/* Unified Centered Welcome Header & Suggestion Cards Block */}
+            <div className="welcome-unified-wrapper">
+              <div className="chat-welcome-banner">
+                <h2>
+                  {getGreeting()}, <span className="highlight-username">{currentUser}</span> ✨
+                </h2>
+                <h3>How are you feeling today?</h3>
+                <p>I'm here to listen, support, and help you feel better.</p>
+              </div>
 
-            {/* Horizontal Suggestion Pill Cards */}
-            <div className="suggestion-pills-row">
-              <button
-                className="suggestion-pill-card"
-                onClick={() => handleSendText("I feel overwhelmed with everything right now.")}
-              >
-                <div className="pill-icon-circle rose">
-                  <Heart size={16} />
-                </div>
-                <div className="pill-text-content">
-                  <span className="pill-title">I feel overwhelmed</span>
-                  <span className="pill-desc">Help me manage stress</span>
-                </div>
-              </button>
+              {/* Centered Suggestion Pill Cards */}
+              <div className="suggestion-pills-row">
+                <button
+                  className="suggestion-pill-card"
+                  onClick={() => handleSendText("I feel overwhelmed with everything right now.")}
+                >
+                  <div className="pill-icon-circle rose">
+                    <Heart size={16} />
+                  </div>
+                  <div className="pill-text-content">
+                    <span className="pill-title">I feel overwhelmed</span>
+                    <span className="pill-desc">Help me manage stress</span>
+                  </div>
+                </button>
 
-              <button
-                className="suggestion-pill-card"
-                onClick={() => handleSendText("I can't sleep and my thoughts are racing.")}
-              >
-                <div className="pill-icon-circle lavender">
-                  <Moon size={16} />
-                </div>
-                <div className="pill-text-content">
-                  <span className="pill-title">I can't sleep</span>
-                  <span className="pill-desc">Improve my sleep</span>
-                </div>
-              </button>
+                <button
+                  className="suggestion-pill-card"
+                  onClick={() => handleSendText("I can't sleep and my thoughts are racing.")}
+                >
+                  <div className="pill-icon-circle lavender">
+                    <Moon size={16} />
+                  </div>
+                  <div className="pill-text-content">
+                    <span className="pill-title">I can't sleep</span>
+                    <span className="pill-desc">Improve my sleep</span>
+                  </div>
+                </button>
 
-              <button
-                className="suggestion-pill-card"
-                onClick={() => handleSendText("Help me relax and calm my mind.")}
-              >
-                <div className="pill-icon-circle green">
-                  <Wind size={16} />
-                </div>
-                <div className="pill-text-content">
-                  <span className="pill-title">Help me relax</span>
-                  <span className="pill-desc">Calm my mind</span>
-                </div>
-              </button>
+                <button
+                  className="suggestion-pill-card"
+                  onClick={() => handleSendText("Help me relax and calm my mind.")}
+                >
+                  <div className="pill-icon-circle green">
+                    <Wind size={16} />
+                  </div>
+                  <div className="pill-text-content">
+                    <span className="pill-title">Help me relax</span>
+                    <span className="pill-desc">Calm my mind</span>
+                  </div>
+                </button>
 
-              <button
-                className="suggestion-pill-card"
-                onClick={() => handleSendText("I feel happy and had a good day!")}
-              >
-                <div className="pill-icon-circle amber">
-                  <Sun size={16} />
-                </div>
-                <div className="pill-text-content">
-                  <span className="pill-title">I feel happy</span>
-                  <span className="pill-desc">Share my joy</span>
-                </div>
-              </button>
+                <button
+                  className="suggestion-pill-card"
+                  onClick={() => handleSendText("I feel happy and had a good day!")}
+                >
+                  <div className="pill-icon-circle amber">
+                    <Sun size={16} />
+                  </div>
+                  <div className="pill-text-content">
+                    <span className="pill-title">I feel happy</span>
+                    <span className="pill-desc">Share my joy</span>
+                  </div>
+                </button>
 
-              <button
-                className="suggestion-pill-card"
-                onClick={() => handleSendText("Just need to talk to someone right now.")}
-              >
-                <div className="pill-icon-circle pink">
-                  <Smile size={16} />
-                </div>
-                <div className="pill-text-content">
-                  <span className="pill-title">Just need to talk</span>
-                  <span className="pill-desc">I'm here for you</span>
-                </div>
-              </button>
+                <button
+                  className="suggestion-pill-card"
+                  onClick={() => handleSendText("Just need to talk to someone right now.")}
+                >
+                  <div className="pill-icon-circle pink">
+                    <Smile size={16} />
+                  </div>
+                  <div className="pill-text-content">
+                    <span className="pill-title">Just need to talk</span>
+                    <span className="pill-desc">I'm here for you</span>
+                  </div>
+                </button>
+              </div>
             </div>
 
             {/* Messages Stream */}

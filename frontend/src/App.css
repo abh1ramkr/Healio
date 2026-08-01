@@ -409,6 +409,14 @@ h1, h2, h3, h4, h5, h6 {
   margin-right: 18px;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.wellness-sidebar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .wellness-sidebar.collapsed {
@@ -518,37 +526,86 @@ h1, h2, h3, h4, h5, h6 {
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
   background: var(--glass-bg-light);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  padding: 24px 28px;
+  padding: 24px 32px;
   box-shadow: var(--glass-shadow);
   overflow: hidden;
 }
 
-.chat-welcome-banner { text-align: center; margin-bottom: 18px; }
-.chat-welcome-banner h2 { font-size: 26px; font-weight: 800; color: var(--text-dark); }
-.highlight-username { color: var(--accent-purple); }
-.chat-welcome-banner h3 { font-size: 15px; font-weight: 600; color: #334155; margin-top: 4px; }
-.chat-welcome-banner p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.welcome-unified-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto 14px auto;
+  text-align: center;
+}
 
-/* Suggestion Pills Horizontal Row */
+.chat-welcome-banner {
+  text-align: center;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chat-welcome-banner h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin-bottom: 2px;
+}
+
+.highlight-username {
+  color: var(--accent-purple);
+}
+
+.chat-welcome-banner h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.chat-welcome-banner p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* Suggestion Pills Centered Horizontal Row */
 .suggestion-pills-row {
-  display: flex; align-items: center; gap: 12px;
-  overflow-x: auto; padding-bottom: 6px; margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+  margin-bottom: 6px;
 }
 
 .suggestion-pill-card {
-  display: flex; align-items: center; gap: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.95);
   border-radius: var(--radius-md);
   padding: 10px 16px;
-  cursor: pointer; transition: all 0.25s ease;
+  cursor: pointer;
+  transition: all 0.25s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-  white-space: nowrap; flex-shrink: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .suggestion-pill-card:hover {
   transform: translateY(-2px);
@@ -574,6 +631,8 @@ h1, h2, h3, h4, h5, h6 {
 /* Messages Scroll Feed */
 .messages-scroll-feed {
   flex: 1;
+  width: 100%;
+  max-width: 860px;
   overflow-y: auto;
   padding-right: 8px;
   display: flex;
@@ -681,6 +740,8 @@ h1, h2, h3, h4, h5, h6 {
    BOTTOM FLOATING INPUT CAPSULE BAR
    ========================================================================== */
 .input-capsule-bar {
+  width: 100%;
+  max-width: 860px;
   display: flex; align-items: center; gap: 12px;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
