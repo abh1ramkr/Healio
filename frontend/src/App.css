@@ -61,7 +61,7 @@ h1, h2, h3, h4, h5, h6 {
    ========================================================================== */
 
 :root {
-  --login-bg-image: url('./assets/login-bg.png'); /* Configurable background image override */
+  --login-bg-image: none; /* Pure CSS abstract gradient blobs background */
 }
 
 .login-screen-wrapper {
@@ -77,7 +77,7 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   background-color: #F8FAFC !important;
-  background-image: var(--login-bg-image);
+  background-image: none;
   background-size: cover;
   background-position: center;
   overflow: hidden;
