@@ -87,6 +87,8 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   // Platform UI States
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -524,148 +526,207 @@ function App() {
     );
   }
 
-  // 2. Two-Column Authentication Screen
+  // 2. Premium Glassmorphism Authentication Screen
   if (!loggedIn) {
     return (
-      <div className="login-page-grid">
-        <div className="login-left-brand">
-          <div className="brand-hero-logo">
-            <span className="logo-icon">😊</span>
-            <h1>HEALIO</h1>
-          </div>
-          <p className="login-tagline">
-            Your AI companion for emotional wellbeing. A safe, confidential space to express how you feel.
-          </p>
-
-          <div className="feature-cards-grid">
-            <div className="feature-card">
-              <div className="feat-icon">📊</div>
-              <h4>Mood Tracking</h4>
-              <p>Understand your emotional patterns and daily progress over time.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feat-icon">🎙️</div>
-              <h4>Voice & Video Analysis</h4>
-              <p>Express yourself naturally using text, audio, or video clips.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feat-icon">🧘</div>
-              <h4>Guided Exercises</h4>
-              <p>Access calming breathing and mindfulness tools whenever needed.</p>
-            </div>
-            <div className="feature-card">
-              <div className="feat-icon">🔒</div>
-              <h4>Private & Secure</h4>
-              <p>Confidential, judgment-free AI companion support 24/7.</p>
-            </div>
-          </div>
+      <div className="login-screen-wrapper">
+        {/* Abstract Soft Organic Gradient Blobs Canvas Background */}
+        <div className="login-bg-canvas">
+          <div className="gradient-blob blob-bottom-left"></div>
+          <div className="gradient-blob blob-top-right"></div>
+          <div className="gradient-blob blob-center-soft"></div>
         </div>
 
-        <div className="login-right-panel">
-          <div className="login-card-modern">
-            <div className="auth-header">
-              <h2>Welcome to HEALIO</h2>
-              <p>Sign in or create your wellness account</p>
+        {/* Floating Frosted Glass Login Card */}
+        <div className="login-glass-card">
+          {/* Header & Branding */}
+          <div className="glass-card-header">
+            <div className="healio-logo-badge">
+              <span className="logo-sparkle">✨</span>
+              <span className="logo-icon">😊</span>
             </div>
+            <h1 className="healio-brand-title">HEALIO</h1>
+            <p className="healio-brand-subtitle">AI Mental Wellness Companion</p>
 
-            <div className="auth-tabs">
-              <button
-                type="button"
-                className={`auth-tab ${authMode === 'login' ? 'active' : ''}`}
-                onClick={() => {
-                  setAuthMode('login');
-                  setLoginError('');
-                  setRegisterSuccess('');
-                }}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                className={`auth-tab ${authMode === 'register' ? 'active' : ''}`}
-                onClick={() => {
-                  setAuthMode('register');
-                  setLoginError('');
-                  setRegisterSuccess('');
-                }}
-              >
-                Register New Account
-              </button>
+            <div className="welcome-headline-box">
+              <h2>{authMode === 'login' ? 'Welcome Back' : 'Begin Your Journey'}</h2>
+              <p>
+                {authMode === 'login'
+                  ? 'Continue your wellness journey with your trusted AI companion.'
+                  : 'Create your private, confidential space for emotional wellbeing.'}
+              </p>
             </div>
+          </div>
 
-            {registerSuccess && <div className="login-success">{registerSuccess}</div>}
-            {loginError && <div className="login-error">{loginError}</div>}
+          {/* Error / Success Notifications */}
+          {registerSuccess && <div className="glass-alert success">{registerSuccess}</div>}
+          {loginError && <div className="glass-alert error">{loginError}</div>}
 
-            {authMode === 'login' ? (
-              <form onSubmit={handleLogin}>
-                <div className="input-group-modern">
-                  <label>Username</label>
+          {/* Form */}
+          {authMode === 'login' ? (
+            <form onSubmit={handleLogin} className="glass-form">
+              <div className="glass-input-group">
+                <label>Username</label>
+                <div className="input-wrapper">
+                  <span className="input-icon">👤</span>
                   <input
                     type="text"
-                    className="input-field-modern"
+                    className="glass-input"
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    required
                   />
                 </div>
-                <div className="input-group-modern">
-                  <label>Password</label>
+              </div>
+
+              <div className="glass-input-group">
+                <label>Password</label>
+                <div className="input-wrapper">
+                  <span className="input-icon">🔒</span>
                   <input
-                    type="password"
-                    className="input-field-modern"
+                    type={showPassword ? 'text' : 'password'}
+                    className="glass-input"
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    required
                   />
+                  <button
+                    type="button"
+                    className="btn-toggle-password"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
                 </div>
-                <button type="submit" className="btn-primary-purple" disabled={isSubmitting}>
-                  {isSubmitting ? 'Signing In...' : 'Sign In'}
+              </div>
+
+              <div className="form-secondary-actions">
+                <label className="checkbox-container">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  <span className="custom-checkmark"></span>
+                  <span className="checkbox-label">Remember Me</span>
+                </label>
+                <a
+                  href="#forgot"
+                  className="forgot-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    alert('Demo Account Credentials:\nUsername: admin\nPassword: password');
+                  }}
+                >
+                  Forgot Password?
+                </a>
+              </div>
+
+              <button type="submit" className="btn-glass-primary" disabled={isSubmitting}>
+                {isSubmitting ? 'Signing In...' : 'Sign In'}
+              </button>
+
+              <div className="auth-toggle-footer">
+                Don't have an account?{' '}
+                <button
+                  type="button"
+                  className="auth-link-button"
+                  onClick={() => {
+                    setAuthMode('register');
+                    setLoginError('');
+                    setRegisterSuccess('');
+                  }}
+                >
+                  Register
                 </button>
-              </form>
-            ) : (
-              <form onSubmit={handleRegister}>
-                <div className="input-group-modern">
-                  <label>Username</label>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleRegister} className="glass-form">
+              <div className="glass-input-group">
+                <label>Username</label>
+                <div className="input-wrapper">
+                  <span className="input-icon">👤</span>
                   <input
                     type="text"
-                    className="input-field-modern"
+                    className="glass-input"
                     placeholder="Choose a username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    required
                   />
                 </div>
-                <div className="input-group-modern">
-                  <label>Password</label>
+              </div>
+
+              <div className="glass-input-group">
+                <label>Password</label>
+                <div className="input-wrapper">
+                  <span className="input-icon">🔒</span>
                   <input
-                    type="password"
-                    className="input-field-modern"
+                    type={showPassword ? 'text' : 'password'}
+                    className="glass-input"
                     placeholder="Create a password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    required
                   />
+                  <button
+                    type="button"
+                    className="btn-toggle-password"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
                 </div>
-                <div className="input-group-modern">
-                  <label>Confirm Password</label>
+              </div>
+
+              <div className="glass-input-group">
+                <label>Confirm Password</label>
+                <div className="input-wrapper">
+                  <span className="input-icon">🔒</span>
                   <input
-                    type="password"
-                    className="input-field-modern"
+                    type={showPassword ? 'text' : 'password'}
+                    className="glass-input"
                     placeholder="Re-enter your password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
                   />
                 </div>
-                <button type="submit" className="btn-primary-purple" disabled={isSubmitting}>
-                  {isSubmitting ? 'Creating Account...' : 'Register'}
-                </button>
-              </form>
-            )}
+              </div>
 
-            <div className="login-demo-hint" style={{ marginTop: '20px', textAlign: 'center' }}>
-              💡 Demo Account: <strong>admin</strong> / <strong>password</strong>
-            </div>
+              <button type="submit" className="btn-glass-primary" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating Account...' : 'Create Account'}
+              </button>
+
+              <div className="auth-toggle-footer">
+                Already have an account?{' '}
+                <button
+                  type="button"
+                  className="auth-link-button"
+                  onClick={() => {
+                    setAuthMode('login');
+                    setLoginError('');
+                    setRegisterSuccess('');
+                  }}
+                >
+                  Sign In
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="demo-credentials-badge">
+            💡 Demo Account: <strong>admin</strong> / <strong>password</strong>
           </div>
         </div>
       </div>
+    );
+  }
     );
   }
 
