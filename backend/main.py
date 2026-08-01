@@ -382,6 +382,45 @@ def get_history(username: str = "default"):
     user_history = get_chat_history_db(username)
     return {"history": user_history}
 
+@app.post("/delete_message")
+def delete_message_endpoint(username: str = Form("default"), index: int = Form(...)):
+    """
+    Deletes a specific turn (by index) from the user's chat history in Firestore or local fallback storage.
+    """
+    if db is not None:
+        try:
+            user_ref = db.collection("users").document(username)
+            docs = list(user_ref.collection("history").order_by("timestamp").stream())
+            if 0 <= index < len(docs):
+                docs[index].reference.delete()
+                print(f"[Firebase] Deleted history turn index {index} for {username}")
+        except Exception as e:
+            print(f"Firestore delete message error: {e}")
+
+    if username in fallback_history and 0 <= index < len(fallback_history[username]):
+        fallback_history[username].pop(index)
+        print(f"[Fallback] Deleted history turn index {index} for {username}")
+
+    return {"success": True, "message": "Message deleted successfully."}
+
+@app.post("/clear_history")
+def clear_history_endpoint(username: str = Form("default")):
+    """
+    Clears all chat history for a specific user.
+    """
+    if db is not None:
+        try:
+            user_ref = db.collection("users").document(username)
+            docs = user_ref.collection("history").stream()
+            for doc in docs:
+                doc.reference.delete()
+            print(f"[Firebase] Cleared all history for {username}")
+        except Exception as e:
+            print(f"Firestore clear history error: {e}")
+
+    fallback_history[username] = []
+    return {"success": True, "message": "Chat history cleared successfully."}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)

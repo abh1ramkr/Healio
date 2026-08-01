@@ -667,9 +667,194 @@ h1, h2, h3, h4, h5, h6 {
   animation: blink 0.7s infinite;
 }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+.msg-wrapper-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 85%;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.msg-wrapper-container.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.msg-wrapper-container.bot {
+  align-self: flex-start;
+}
+
+/* Checkbox for Multi-Select Mode */
+.msg-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-purple);
+  cursor: pointer;
+}
+
+/* Hover 3-Dots Action Button */
+.btn-msg-dots {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--border-glass);
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.msg-wrapper-container:hover .btn-msg-dots,
+.btn-msg-dots.active {
+  opacity: 1;
+  background: rgba(30, 41, 59, 0.9);
+  color: #ffffff;
+}
+
+/* 3-Dots Popup Dropdown */
+.msg-options-dropdown {
+  position: absolute;
+  top: 36px;
+  background: #1e293b;
+  border: 1px solid var(--border-glass-bright);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.msg-wrapper-container.user .msg-options-dropdown {
+  right: 40px;
+}
+
+.msg-wrapper-container.bot .msg-options-dropdown {
+  left: 40px;
+}
+
+.dropdown-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  text-align: left;
+}
+
+.dropdown-item-btn:hover {
+  background: rgba(124, 108, 255, 0.2);
+  color: #ffffff;
+}
+
+.dropdown-item-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+/* Bulk Delete Floating Bar */
+.bulk-delete-bar {
+  position: sticky;
+  bottom: 12px;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-glass-bright);
+  border-radius: var(--radius-full);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
+  z-index: 90;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.btn-bulk-delete {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border: none;
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-bulk-delete:hover {
+  transform: scale(1.04);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+.ai-detected-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(124, 108, 255, 0.15);
+  border: 1px solid rgba(124, 108, 255, 0.3);
+  color: #c7d2fe;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.sidebar-bottom-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.btn-sidebar-action {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-sidebar-action:hover {
+  background: rgba(124, 108, 255, 0.15);
+  color: #ffffff;
+  border-color: var(--border-glass-bright);
+}
+
+.btn-sidebar-action.logout:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 /* ==========================================================================

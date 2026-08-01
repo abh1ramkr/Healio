@@ -18,6 +18,28 @@ const AFFIRMATIONS = [
   "Peace begins with a single conscious breath."
 ];
 
+// Map detected emotion text to corresponding mood emoji
+function mapEmotionToMoodEmoji(emotionsText) {
+  if (!emotionsText) return { emoji: '😊', label: 'neutral' };
+  const lower = emotionsText.toLowerCase();
+  
+  if (lower.includes('joy') || lower.includes('amusement') || lower.includes('excitement') || 
+      lower.includes('optimism') || lower.includes('gratitude') || lower.includes('love') || lower.includes('admiration')) {
+    return { emoji: '😄', label: lower.split(' ')[0] || 'joy' };
+  }
+  if (lower.includes('caring') || lower.includes('approval') || lower.includes('curiosity') || lower.includes('relief')) {
+    return { emoji: '😊', label: lower.split(' ')[0] || 'caring' };
+  }
+  if (lower.includes('sadness') || lower.includes('grief') || lower.includes('disappointment') || lower.includes('remorse')) {
+    return { emoji: '😔', label: lower.split(' ')[0] || 'sadness' };
+  }
+  if (lower.includes('fear') || lower.includes('nervousness') || lower.includes('anger') || 
+      lower.includes('annoyance') || lower.includes('disgust') || lower.includes('embarrassment')) {
+    return { emoji: '😰', label: lower.split(' ')[0] || 'anxiety' };
+  }
+  return { emoji: '😐', label: 'neutral' };
+}
+
 // Typewriter component for animated typing effect on new AI responses
 function TypewriterText({ text, speed = 12 }) {
   const [displayedText, setDisplayedText] = useState('');
@@ -69,13 +91,20 @@ function App() {
   // Platform UI States
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedMood, setSelectedMood] = useState('😊');
+  const [detectedEmotionLabel, setDetectedEmotionLabel] = useState('Neutral');
   const [dailyAffirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
   const [showBreathingModal, setShowBreathingModal] = useState(false);
   const [breathingText, setBreathingText] = useState('Inhale slowly...');
 
+  // Chat & Message States
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Hover 3-Dots Dropdown & Selection States
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
   
   // Media & Popup states
   const [showPaperclipMenu, setShowPaperclipMenu] = useState(false);
@@ -95,13 +124,10 @@ function App() {
   const audioInputFileRef = useRef(null);
   const videoInputFileRef = useRef(null);
   const paperclipMenuRef = useRef(null);
-  const textareaRef = useRef(null);
 
-  // Splash screen transition timer
+  // Splash screen timer
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2200);
+    const timer = setTimeout(() => setShowSplash(false), 2200);
     return () => clearTimeout(timer);
   }, []);
 
@@ -122,11 +148,14 @@ function App() {
     return () => clearInterval(audioTimerRef.current);
   }, [isRecordingAudio, isAudioPaused]);
 
-  // Close paperclip menu on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (paperclipMenuRef.current && !paperclipMenuRef.current.contains(event.target)) {
         setShowPaperclipMenu(false);
+      }
+      if (!event.target.closest('.btn-msg-dots') && !event.target.closest('.msg-options-dropdown')) {
+        setOpenDropdownId(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -155,9 +184,15 @@ function App() {
       const data = await res.json();
       if (data && data.history) {
         const loaded = [];
-        data.history.forEach((h) => {
-          if (h[0]) loaded.push({ type: 'user', text: h[0], isNew: false });
-          if (h[2]) loaded.push({ type: 'bot', text: h[2], emotions: h[1], isNew: false });
+        data.history.forEach((h, idx) => {
+          if (h[0]) loaded.push({ id: `hist_user_${idx}`, turnIndex: idx, type: 'user', text: h[0], isNew: false });
+          if (h[2]) {
+            loaded.push({ id: `hist_bot_${idx}`, turnIndex: idx, type: 'bot', text: h[2], emotions: h[1], isNew: false });
+            // Auto update mood based on last turn
+            const { emoji, label } = mapEmotionToMoodEmoji(h[1]);
+            setSelectedMood(emoji);
+            setDetectedEmotionLabel(label);
+          }
         });
         setMessages(loaded);
       }
@@ -244,32 +279,62 @@ function App() {
     setRegisterSuccess('');
   };
 
-  const sendRequest = async (endpoint, formData, fallbackUserText = '') => {
+  const handleClearChat = async () => {
+    if (!currentUser) return;
+    try {
+      const formData = new FormData();
+      formData.append('username', currentUser);
+      await fetch('/clear_history', { method: 'POST', body: formData });
+    } catch (err) {
+      console.error('Error clearing backend history:', err);
+    }
+    setMessages([]);
+    setSelectedMsgIds(new Set());
+    setIsSelectMode(false);
+  };
+
+  // Optimistically displays user message FIRST, then calls backend
+  const sendRequest = async (endpoint, formData, userText) => {
+    const userMsgId = `user_${Date.now()}_${Math.random()}`;
+    const userMsg = { id: userMsgId, type: 'user', text: userText, isNew: false };
+
+    // 1. Optimistic Update: Append user message IMMEDIATELY to UI
+    setMessages((prev) => [...prev, userMsg]);
+    setInputText('');
+    setAudioFile(null);
+    setVideoFile(null);
     setIsLoading(true);
+
     formData.append('username', currentUser || 'default');
+
     try {
       const res = await fetch(endpoint, { method: 'POST', body: formData });
       const data = await res.json();
       
-      const userText = data.transcription || inputText || fallbackUserText || 'Media Upload Processed';
-      const userMsg = { type: 'user', text: userText, isNew: false };
+      // 2. Auto-detect emotion and update current mood in sidebar automatically
+      if (data.emotions) {
+        const { emoji, label } = mapEmotionToMoodEmoji(data.emotions);
+        setSelectedMood(emoji);
+        setDetectedEmotionLabel(label);
+      }
+
+      // 3. Append Bot Message (NO auto-play audio! Text response only first)
+      const botMsgId = `bot_${Date.now()}_${Math.random()}`;
       const botMsg = {
+        id: botMsgId,
         type: 'bot',
         text: data.response,
         emotions: data.emotions,
         audio: data.audio_base64 ? `data:audio/mp3;base64,${data.audio_base64}` : null,
-        isNew: true, // triggers typewriter animation
+        isNew: true, // triggers typewriter text animation
       };
 
-      setMessages((prev) => [...prev, userMsg, botMsg]);
-      setInputText('');
-      setAudioFile(null);
-      setVideoFile(null);
+      setMessages((prev) => [...prev, botMsg]);
     } catch (error) {
       console.error('API Error:', error);
       setMessages((prev) => [
         ...prev,
-        { type: 'bot', text: 'I encountered an issue processing your request. Please try again.', isNew: true },
+        { id: `err_${Date.now()}`, type: 'bot', text: 'I encountered an issue. Please try again.', isNew: true },
       ]);
     } finally {
       setIsLoading(false);
@@ -289,7 +354,7 @@ function App() {
     if (!targetFile) return;
     const formData = new FormData();
     formData.append('audio_file', targetFile);
-    sendRequest('/voice', formData, 'Audio Upload');
+    sendRequest('/voice', formData, `Audio: ${targetFile.name}`);
   };
 
   const handleSendVideoFile = (file) => {
@@ -297,7 +362,7 @@ function App() {
     if (!targetFile) return;
     const formData = new FormData();
     formData.append('video_file', targetFile);
-    sendRequest('/video', formData, 'Video Upload');
+    sendRequest('/video', formData, `Video: ${targetFile.name}`);
   };
 
   const startAudioRecording = async () => {
@@ -310,7 +375,7 @@ function App() {
         const blob = new Blob(chunks, { type: 'audio/wav' });
         const formData = new FormData();
         formData.append('audio_file', blob, 'recording.wav');
-        await sendRequest('/voice', formData, 'Voice Recording');
+        await sendRequest('/voice', formData, '🎙️ Voice Recording');
         stream.getTracks().forEach((track) => track.stop());
       };
       mediaRecorderRef.current.start();
@@ -366,7 +431,7 @@ function App() {
       const blob = new Blob(chunks, { type: 'video/mp4' });
       const formData = new FormData();
       formData.append('video_file', blob, 'video_rec.mp4');
-      await sendRequest('/video', formData, 'Video Recording');
+      await sendRequest('/video', formData, '📹 Video Message');
       closeVideoModal();
     };
     mediaRecorderRef.current.start();
@@ -388,6 +453,65 @@ function App() {
     setIsRecordingVideo(false);
   };
 
+  // --- Message Action Handlers (Read Aloud, Delete, Select) ---
+  const handleReadAloud = (msg) => {
+    setOpenDropdownId(null);
+    if (msg.audio) {
+      const audioObj = new Audio(msg.audio);
+      audioObj.play().catch((e) => console.error('Audio play error:', e));
+    } else if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(msg.text);
+      utterance.rate = 0.95;
+      window.speechSynthesis.speak(utterance);
+    } else {
+      alert('Speech synthesis is not supported on this browser.');
+    }
+  };
+
+  const handleDeleteSingleMessage = async (msgId, msgIndex) => {
+    setOpenDropdownId(null);
+    setMessages((prev) => prev.filter((m) => m.id !== msgId));
+    
+    // Sync backend deletion if turn index is available
+    if (msgIndex !== undefined && currentUser) {
+      try {
+        const formData = new FormData();
+        formData.append('username', currentUser);
+        formData.append('index', msgIndex);
+        await fetch('/delete_message', { method: 'POST', body: formData });
+      } catch (err) {
+        console.error('Error deleting message from backend:', err);
+      }
+    }
+  };
+
+  const handleToggleSelectMode = (msgId) => {
+    setOpenDropdownId(null);
+    setIsSelectMode(true);
+    setSelectedMsgIds((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(msgId)) updated.delete(msgId);
+      else updated.add(msgId);
+      return updated;
+    });
+  };
+
+  const handleCheckboxToggle = (msgId) => {
+    setSelectedMsgIds((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(msgId)) updated.delete(msgId);
+      else updated.add(msgId);
+      return updated;
+    });
+  };
+
+  const handleBulkDelete = () => {
+    setMessages((prev) => prev.filter((m) => !selectedMsgIds.has(m.id)));
+    setSelectedMsgIds(new Set());
+    setIsSelectMode(false);
+  };
+
   // 1. Splash Loader
   if (showSplash) {
     return (
@@ -400,11 +524,10 @@ function App() {
     );
   }
 
-  // 2. Redesigned Two-Column Authentication Screen
+  // 2. Two-Column Authentication Screen
   if (!loggedIn) {
     return (
       <div className="login-page-grid">
-        {/* Left Column: Brand & Feature Showcase */}
         <div className="login-left-brand">
           <div className="brand-hero-logo">
             <span className="logo-icon">😊</span>
@@ -438,7 +561,6 @@ function App() {
           </div>
         </div>
 
-        {/* Right Column: Modern Authentication Form */}
         <div className="login-right-panel">
           <div className="login-card-modern">
             <div className="auth-header">
@@ -446,7 +568,6 @@ function App() {
               <p>Sign in or create your wellness account</p>
             </div>
 
-            {/* Auth Tab Switcher */}
             <div className="auth-tabs">
               <button
                 type="button"
@@ -551,7 +672,7 @@ function App() {
   // 3. Main Mental Wellness Platform Interface
   return (
     <div className="app-platform-layout">
-      {/* Redesigned Header */}
+      {/* Minimal Header */}
       <header className="header-modern">
         <div className="header-brand-group">
           <button
@@ -572,32 +693,30 @@ function App() {
           <div className="user-profile-badge">
             👤 <strong>{currentUser}</strong>
           </div>
-          <button className="btn-nav-outline" onClick={() => setMessages([])}>
-            Clear Chat
-          </button>
-          <button className="btn-nav-outline" onClick={handleLogout}>
-            Logout
-          </button>
         </div>
       </header>
 
-      {/* Platform Body with Collapsible Sidebar & Chat */}
+      {/* Main Body */}
       <div className="main-body-container">
-        {/* Collapsible Wellness Sidebar */}
+        {/* Collapsible Wellness Sidebar with Clear Chat & Logout at Bottom */}
         <aside className={`wellness-sidebar ${isSidebarOpen ? '' : 'collapsed'}`}>
-          {/* Current Mood Selector */}
+          {/* AI-Detected Current Mood Display */}
           <div className="sidebar-box">
-            <h4>Current Mood</h4>
+            <h4>Current Mood (AI Detected)</h4>
             <div className="mood-buttons-grid">
               {['😄', '😊', '😐', '😔', '😰'].map((emoji) => (
                 <button
                   key={emoji}
                   className={`btn-mood-emoji ${selectedMood === emoji ? 'selected' : ''}`}
-                  onClick={() => setSelectedMood(emoji)}
+                  title={`AI Detected Mood: ${selectedMood === emoji ? detectedEmotionLabel : emoji}`}
+                  style={{ pointerEvents: 'none' }} // Automatically selected by AI
                 >
                   {emoji}
                 </button>
               ))}
+            </div>
+            <div className="ai-detected-pill">
+              ✨ Bot Detected: <strong>{detectedEmotionLabel}</strong>
             </div>
           </div>
 
@@ -621,11 +740,21 @@ function App() {
           {/* Emergency Support Notice */}
           <div className="emergency-support-box">
             <h5>Immediate Support</h5>
-            <p>If you are in crisis, please call <strong>988</strong> (Lifeline) or reach out to a professional counselor.</p>
+            <p>If you are in crisis, call <strong>988</strong> (Lifeline) or reach out to a professional counselor.</p>
+          </div>
+
+          {/* Moved Clear Chat & Logout Buttons to Sidebar Bottom */}
+          <div className="sidebar-bottom-actions">
+            <button className="btn-sidebar-action" onClick={handleClearChat}>
+              🗑️ Clear Chat History
+            </button>
+            <button className="btn-sidebar-action logout" onClick={handleLogout}>
+              🚪 Logout
+            </button>
           </div>
         </aside>
 
-        {/* Chat Main Workspace */}
+        {/* Chat Area */}
         <main className="chat-main-area">
           <div className="messages-scroll-feed">
             {messages.length === 0 ? (
@@ -639,7 +768,6 @@ function App() {
                   ✨ "{dailyAffirmation}"
                 </div>
 
-                {/* 6 Large Clickable Suggestion Cards */}
                 <div className="large-suggestion-grid">
                   <div
                     className="suggestion-card-large"
@@ -687,10 +815,21 @@ function App() {
               </div>
             ) : (
               messages.map((msg, idx) => (
-                <div key={idx} className={`msg-row ${msg.type === 'user' ? 'user' : 'bot'}`}>
+                <div key={msg.id || idx} className={`msg-wrapper-container ${msg.type === 'user' ? 'user' : 'bot'}`}>
+                  {/* Multi-select Checkbox */}
+                  {isSelectMode && (
+                    <input
+                      type="checkbox"
+                      className="msg-checkbox"
+                      checked={selectedMsgIds.has(msg.id)}
+                      onChange={() => handleCheckboxToggle(msg.id)}
+                    />
+                  )}
+
                   <div className="msg-avatar">
                     {msg.type === 'user' ? '👤' : '😊'}
                   </div>
+
                   <div className={`msg-bubble ${msg.type === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
                     {msg.type === 'bot' && (
                       <div className="msg-bot-header">HEALIO AI</div>
@@ -703,19 +842,50 @@ function App() {
                         msg.text
                       )}
                     </div>
-
-                    {msg.audio && (
-                      <div className="audio-player-wrapper">
-                        <audio controls src={msg.audio} className="custom-audio-player" autoPlay />
-                      </div>
-                    )}
                   </div>
+
+                  {/* 3-Dots Hover Action Menu Button */}
+                  <button
+                    type="button"
+                    className={`btn-msg-dots ${openDropdownId === msg.id ? 'active' : ''}`}
+                    title="Message Options"
+                    onClick={() => setOpenDropdownId((prev) => (prev === msg.id ? null : msg.id))}
+                  >
+                    ⋮
+                  </button>
+
+                  {/* 3-Dots Dropdown Popup */}
+                  {openDropdownId === msg.id && (
+                    <div className="msg-options-dropdown">
+                      <button
+                        type="button"
+                        className="dropdown-item-btn"
+                        onClick={() => handleReadAloud(msg)}
+                      >
+                        🔊 <span>Read Aloud</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="dropdown-item-btn delete"
+                        onClick={() => handleDeleteSingleMessage(msg.id, msg.turnIndex ?? Math.floor(idx / 2))}
+                      >
+                        🗑️ <span>Delete Message</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="dropdown-item-btn"
+                        onClick={() => handleToggleSelectMode(msg.id)}
+                      >
+                        ☑️ <span>Select</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
 
             {isLoading && (
-              <div className="msg-row bot">
+              <div className="msg-wrapper-container bot">
                 <div className="msg-avatar">😊</div>
                 <div className="msg-bubble bubble-bot">
                   <div className="msg-bot-header">HEALIO AI</div>
@@ -723,12 +893,29 @@ function App() {
                 </div>
               </div>
             )}
+
+            {/* Bulk Delete Floating Bar */}
+            {isSelectMode && (
+              <div className="bulk-delete-bar">
+                <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>
+                  {selectedMsgIds.size} message(s) selected
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn-bulk-delete" onClick={handleBulkDelete} disabled={selectedMsgIds.size === 0}>
+                    🗑️ Delete Selected
+                  </button>
+                  <button className="btn-nav-outline" onClick={() => { setIsSelectMode(false); setSelectedMsgIds(new Set()); }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
           {/* Floating Input Capsule & Attachment Popup Bar */}
           <div className="floating-input-panel">
-            {/* Selected File Previews */}
             {(audioFile || videoFile) && (
               <div className="media-preview-bar">
                 {audioFile && (
@@ -747,7 +934,6 @@ function App() {
             )}
 
             <div className="input-capsule-bar">
-              {/* Paperclip Attachment Menu (LEFT) */}
               <div className="paperclip-container" ref={paperclipMenuRef}>
                 <button
                   type="button"
@@ -787,7 +973,6 @@ function App() {
                 )}
               </div>
 
-              {/* Hidden File Inputs */}
               <input
                 type="file"
                 accept="audio/*"
@@ -813,7 +998,6 @@ function App() {
                 }}
               />
 
-              {/* Textarea or Voice Recording Bar */}
               {isRecordingAudio ? (
                 <div className="voice-recording-inline-bar">
                   <div className="recording-indicator">
@@ -843,7 +1027,6 @@ function App() {
               ) : (
                 <>
                   <textarea
-                    ref={textareaRef}
                     className="textarea-auto-expand"
                     rows="1"
                     placeholder="Tell me what's on your mind..."
