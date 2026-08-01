@@ -348,28 +348,47 @@ def generate_dynamic_empathetic_response(user_input: str, emotions: list) -> str
         ]
         return f"{opener} {random.choice(advice_options)}"
 
-def get_gemini_response(user_input, emotions, username="default"):
-    user_history = get_chat_history_db(username)
-    history_text = "\n".join([f"User: {h[0]}\nBot: {h[2]}" for h in user_history[-5:]])
+def get_gemini_response(user_input, emotions, username="default", session_id=None):
+    # Fetch session messages from SQLite db_manager
+    session_messages = db_manager.get_session_messages(session_id, username) if session_id else []
+    
+    # Also fetch general history fallback if session_messages is empty
+    if not session_messages:
+        user_history = get_chat_history_db(username)
+        history_lines = [f"User: {h[0]}\nBot: {h[2]}" for h in user_history[-5:]]
+        history_text = "\n".join(history_lines) if history_lines else "None (New Conversation)"
+    else:
+        history_lines = []
+        for msg in session_messages[-10:]:
+            sender = "User" if msg.get("sender") in ["user", "human"] or msg.get("type") == "user" else "HEALIO"
+            text_content = msg.get("text") or msg.get("message") or ""
+            if text_content:
+                history_lines.append(f"{sender}: {text_content}")
+        history_text = "\n".join(history_lines)
+
     top_emotion = emotions[0][0] if emotions else "neutral"
 
     prompt = (
-        f"You are an expert mental health consultant and therapist named HEALIO.\n"
-        f"Chat History:\n{history_text}\n\n"
-        f"The user is experiencing the emotion: {top_emotion}.\n"
-        f"User input: '{user_input}'\n\n"
-        f"Respond as a deeply caring, empathetic mental health companion:\n"
-        f"1. Acknowledge and validate their emotion directly.\n"
+        f"You are HEALIO, a deeply caring, empathetic, professional AI mental health companion.\n"
+        f"You are in an ongoing conversation with the user. ALWAYS maintain conversational continuity with what was discussed previously.\n\n"
+        f"PREVIOUS CONVERSATION CONTEXT:\n{history_text}\n\n"
+        f"USER'S LATEST MESSAGE:\n'{user_input}'\n"
+        f"DETECTED EMOTIONAL STATE: {top_emotion}\n\n"
+        f"Respond warmly, soothingly, and directly address their message while remembering their previous statements:\n"
+        f"1. Acknowledge and validate their emotional state directly.\n"
         f"2. Offer tailored, actionable mental wellness coping advice or exercises relevant to their exact situation.\n"
         f"3. End with a gentle, thoughtful follow-up question.\n"
-        f"Keep the tone warm, soothing, professional, and concise (2-4 sentences).\n"
+        f"Keep the response concise (2-4 sentences)."
     )
 
+    load_dotenv(env_path, override=True)
+    api_key = os.getenv("GEMINI_API_KEY", API_KEY)
+
     # 1. Try official google-generativeai SDK if available
-    if GENAI_AVAILABLE and API_KEY and len(API_KEY) > 10:
+    if GENAI_AVAILABLE and api_key and len(api_key) > 10:
         try:
-            genai.configure(api_key=API_KEY)
-            for m_name in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-pro"]:
+            genai.configure(api_key=api_key)
+            for m_name in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]:
                 try:
                     g_model = genai.GenerativeModel(m_name)
                     res = g_model.generate_content(prompt)
@@ -385,9 +404,9 @@ def get_gemini_response(user_input, emotions, username="default"):
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     headers = {"Content-Type": "application/json"}
 
-    if API_KEY and len(API_KEY) > 10:
+    if api_key and len(api_key) > 10:
         for model_name in FALLBACK_MODELS:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={API_KEY}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
             try:
                 response = requests.post(url, headers=headers, json=payload, timeout=10)
                 if response.status_code == 200:
@@ -427,7 +446,7 @@ def transcribe_audio_video(file_path):
         print(f"Transcription error: {e}")
         return ""
 
-def process_media(audio_file, video_file, text_input, username="default"):
+def process_media(audio_file, video_file, text_input, username="default", session_id=None):
     transcribed_text = ""
     if audio_file:
         transcribed_text += transcribe_audio_video(audio_file)
@@ -440,7 +459,7 @@ def process_media(audio_file, video_file, text_input, username="default"):
 
     detected_emotions = detect_emotion(text)
     emotions_text = ", ".join([f"{e} ({round(c*100, 2)}%)" for e, c in detected_emotions])
-    gemini_response = get_gemini_response(text, detected_emotions, username)
+    gemini_response = get_gemini_response(text, detected_emotions, username, session_id)
 
     # Save to database with vector embedding
     save_chat_turn_db(username, text, emotions_text, gemini_response)
@@ -563,18 +582,18 @@ def delete_session_endpoint(session_id: str = Form(...), username: str = Form("d
 # Update chat endpoint to support session_id and SQLite persistence
 @app.post("/chat")
 def chat_endpoint(text_input: str = Form(...), username: str = Form("default"), session_id: Optional[str] = Form(None)):
-    text, emotions_text, gemini_response, chat_history_text, audio_path = process_media(None, None, text_input, username)
+    # 1. Resolve or create session ID first so Gemini gets current session history
+    sid = session_id
+    if not sid or sid == "new":
+        ai_title = generate_ai_title(text_input)
+        sid = db_manager.create_chat_session(username, ai_title)
+
+    text, emotions_text, gemini_response, chat_history_text, audio_path = process_media(None, None, text_input, username, sid)
     if audio_path:
         with open(audio_path, "rb") as f:
             audio_base64 = base64.b64encode(f.read()).decode()
     else:
         audio_base64 = ""
-    
-    # Save to SQLite db_manager
-    sid = session_id
-    if not sid or sid == "new":
-        ai_title = generate_ai_title(text_input)
-        sid = db_manager.create_chat_session(username, ai_title)
     
     now_str = time.strftime("%I:%M %p")
     user_msg = db_manager.save_chat_message(sid, username, "user", text_input, emotions_text, now_str)
