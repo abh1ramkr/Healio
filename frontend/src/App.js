@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
+import { 
+  Menu, Sparkles, Search, Bell, ChevronRight, ChevronDown, 
+  Wind, Quote, Heart, Paperclip, Image, Mic, Send, 
+  Trash2, Volume2, CheckSquare, LogOut, MoreVertical,
+  Sun, Moon, Smile, MessageCircle, User, BookOpen, Wrench, Settings, Sparkle
+} from 'lucide-react';
 
 // Dynamic Time-based Greeting Helper
 function getGreeting() {
@@ -11,33 +17,33 @@ function getGreeting() {
 
 // Daily Affirmation Quotes
 const AFFIRMATIONS = [
-  "Take one small step today. That's enough.",
+  "You are enough just as you are. Take things one step at a time.",
   "Breathe deeply. You are safe, supported, and heard.",
   "Your feelings are valid. Take all the time you need.",
-  "Be gentle with yourself today. You are doing the best you can.",
+  "Be gentle with yourself today. You are doing your best.",
   "Peace begins with a single conscious breath."
 ];
 
-// Map detected emotion text to corresponding mood emoji
-function mapEmotionToMoodEmoji(emotionsText) {
-  if (!emotionsText) return { emoji: '😊', label: 'neutral' };
+// Map detected emotion text to clean emotion label
+function mapEmotionToMoodLabel(emotionsText) {
+  if (!emotionsText) return 'Calm';
   const lower = emotionsText.toLowerCase();
   
   if (lower.includes('joy') || lower.includes('amusement') || lower.includes('excitement') || 
       lower.includes('optimism') || lower.includes('gratitude') || lower.includes('love') || lower.includes('admiration')) {
-    return { emoji: '😄', label: lower.split(' ')[0] || 'joy' };
+    return 'Happy';
   }
   if (lower.includes('caring') || lower.includes('approval') || lower.includes('curiosity') || lower.includes('relief')) {
-    return { emoji: '😊', label: lower.split(' ')[0] || 'caring' };
+    return 'Calm';
   }
   if (lower.includes('sadness') || lower.includes('grief') || lower.includes('disappointment') || lower.includes('remorse')) {
-    return { emoji: '😔', label: lower.split(' ')[0] || 'sadness' };
+    return 'Disappointment';
   }
   if (lower.includes('fear') || lower.includes('nervousness') || lower.includes('anger') || 
       lower.includes('annoyance') || lower.includes('disgust') || lower.includes('embarrassment')) {
-    return { emoji: '😰', label: lower.split(' ')[0] || 'anxiety' };
+    return 'Anxious';
   }
-  return { emoji: '😐', label: 'neutral' };
+  return 'Thoughtful';
 }
 
 // Typewriter component for animated typing effect on new AI responses
@@ -92,111 +98,112 @@ function App() {
 
   // Platform UI States
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [selectedMood, setSelectedMood] = useState('😊');
-  const [detectedEmotionLabel, setDetectedEmotionLabel] = useState('Neutral');
+  const [detectedEmotionLabel, setDetectedEmotionLabel] = useState('Calm');
   const [dailyAffirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
   const [showBreathingModal, setShowBreathingModal] = useState(false);
   const [breathingText, setBreathingText] = useState('Inhale slowly...');
 
   // Chat & Message States
   const [messages, setMessages] = useState([]);
-  const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Hover 3-Dots Dropdown & Selection States
-  const [openDropdownId, setOpenDropdownId] = useState(null);
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
-  
-  // Media & Popup states
-  const [showPaperclipMenu, setShowPaperclipMenu] = useState(false);
+  const [textInput, setTextInput] = useState('');
   const [audioFile, setAudioFile] = useState(null);
   const [videoFile, setVideoFile] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Attachment Popup & Recording States
+  const [showUploadPopup, setShowUploadPopup] = useState(false);
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
-  const [isAudioPaused, setIsAudioPaused] = useState(false);
-  const [audioTimer, setAudioTimer] = useState(0);
-  const [showVideoModal, setShowVideoModal] = useState(false);
-  const [isRecordingVideo, setIsRecordingVideo] = useState(false);
 
-  const messagesEndRef = useRef(null);
+  // Hover Action Menu & Selection States
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+  const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
+
+  // Refs for media elements
+  const textareaRef = useRef(null);
+  const audioInputRef = useRef(null);
+  const videoInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const audioTimerRef = useRef(null);
-  const audioInputFileRef = useRef(null);
-  const videoInputFileRef = useRef(null);
-  const paperclipMenuRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
-  // Splash screen timer
+  // Auto-splash screen timer
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2200);
+    const timer = setTimeout(() => setShowSplash(false), 1400);
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-scroll chat feed
+  // Close dropdown on outside click
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
-
-  // Audio recording timer counter
-  useEffect(() => {
-    if (isRecordingAudio && !isAudioPaused) {
-      audioTimerRef.current = setInterval(() => {
-        setAudioTimer((prev) => prev + 1);
-      }, 1000);
-    } else {
-      clearInterval(audioTimerRef.current);
-    }
-    return () => clearInterval(audioTimerRef.current);
-  }, [isRecordingAudio, isAudioPaused]);
-
-  // Close dropdowns on outside click
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (paperclipMenuRef.current && !paperclipMenuRef.current.contains(event.target)) {
-        setShowPaperclipMenu(false);
-      }
-      if (!event.target.closest('.btn-msg-dots') && !event.target.closest('.msg-options-dropdown')) {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.msg-options-dropdown') && !e.target.closest('.btn-msg-dots')) {
         setOpenDropdownId(null);
       }
+      if (!e.target.closest('.paperclip-popup-menu') && !e.target.closest('.btn-paperclip')) {
+        setShowUploadPopup(false);
+      }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
   }, []);
 
-  // Guided breathing timer effect
+  // Guided breathing exercise timer loop
   useEffect(() => {
-    let breathTimer;
+    let breathingInterval;
     if (showBreathingModal) {
-      const phases = ['Inhale slowly...', 'Hold your breath...', 'Exhale gently...', 'Rest & relax...'];
-      let phaseIdx = 0;
-      breathTimer = setInterval(() => {
-        phaseIdx = (phaseIdx + 1) % phases.length;
-        setBreathingText(phases[phaseIdx]);
-      }, 2500);
+      let step = 0;
+      setBreathingText('Inhale slowly (4s)...');
+      breathingInterval = setInterval(() => {
+        step = (step + 1) % 3;
+        if (step === 0) setBreathingText('Inhale slowly (4s)...');
+        else if (step === 1) setBreathingText('Hold breath gently (7s)...');
+        else if (step === 2) setBreathingText('Exhale completely (8s)...');
+      }, 4000);
     }
-    return () => clearInterval(breathTimer);
+    return () => clearInterval(breathingInterval);
   }, [showBreathingModal]);
 
-  const fetchHistory = async (user) => {
-    const targetUser = user || currentUser;
-    if (!targetUser) return;
+  // Auto-fetch user chat history from database
+  const fetchHistory = async (userToFetch) => {
+    if (!userToFetch) return;
     try {
-      const res = await fetch(`/history?username=${encodeURIComponent(targetUser)}`);
+      const res = await fetch(`/history?username=${encodeURIComponent(userToFetch)}`);
       const data = await res.json();
-      if (data && data.history) {
-        const loaded = [];
-        data.history.forEach((h, idx) => {
-          if (h[0]) loaded.push({ id: `hist_user_${idx}`, turnIndex: idx, type: 'user', text: h[0], isNew: false });
-          if (h[2]) {
-            loaded.push({ id: `hist_bot_${idx}`, turnIndex: idx, type: 'bot', text: h[2], emotions: h[1], isNew: false });
-            // Auto update mood based on last turn
-            const { emoji, label } = mapEmotionToMoodEmoji(h[1]);
-            setSelectedMood(emoji);
-            setDetectedEmotionLabel(label);
+      if (res.ok && data.history && Array.isArray(data.history)) {
+        const formattedMsgs = [];
+        data.history.forEach((turn, idx) => {
+          const uText = turn[0];
+          const eText = turn[1];
+          const bText = turn[2];
+          const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          if (uText) {
+            formattedMsgs.push({
+              id: `hist_u_${idx}`,
+              type: 'user',
+              text: uText,
+              timestamp: nowStr,
+              isNew: false
+            });
+          }
+          if (bText) {
+            formattedMsgs.push({
+              id: `hist_b_${idx}`,
+              type: 'bot',
+              text: bText,
+              emotions: eText,
+              timestamp: nowStr,
+              turnIndex: idx,
+              isNew: false
+            });
           }
         });
-        setMessages(loaded);
+        setMessages(formattedMsgs);
+        if (data.history.length > 0) {
+          const lastTurn = data.history[data.history.length - 1];
+          if (lastTurn[1]) {
+            setDetectedEmotionLabel(mapEmotionToMoodLabel(lastTurn[1]));
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading history:', error);
@@ -257,15 +264,15 @@ function App() {
       const res = await fetch('/register', { method: 'POST', body: formData });
       const data = await res.json();
       if (res.ok && data.success) {
-        setRegisterSuccess(data.message || 'Registration successful! You can now log in.');
+        setRegisterSuccess('Account created! You can now sign in.');
         setAuthMode('login');
         setPassword('');
         setConfirmPassword('');
       } else {
-        setLoginError(data.detail || 'Registration failed.');
+        setLoginError(data.detail || 'Registration failed. Try another username.');
       }
     } catch (error) {
-      setLoginError('Connection failed. Make sure backend is running.');
+      setLoginError('Connection error. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -297,12 +304,13 @@ function App() {
 
   // Optimistically displays user message FIRST, then calls backend
   const sendRequest = async (endpoint, formData, userText) => {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const userMsgId = `user_${Date.now()}_${Math.random()}`;
-    const userMsg = { id: userMsgId, type: 'user', text: userText, isNew: false };
+    const userMsg = { id: userMsgId, type: 'user', text: userText, timestamp: timeStr, isNew: false };
 
     // 1. Optimistic Update: Append user message IMMEDIATELY to UI
     setMessages((prev) => [...prev, userMsg]);
-    setInputText('');
+    setTextInput('');
     setAudioFile(null);
     setVideoFile(null);
     setIsLoading(true);
@@ -315,18 +323,17 @@ function App() {
       
       // 2. Auto-detect emotion and update current mood in sidebar automatically
       if (data.emotions) {
-        const { emoji, label } = mapEmotionToMoodEmoji(data.emotions);
-        setSelectedMood(emoji);
-        setDetectedEmotionLabel(label);
+        setDetectedEmotionLabel(mapEmotionToMoodLabel(data.emotions));
       }
 
-      // 3. Append Bot Message (NO auto-play audio! Text response only first)
+      // 3. Append Bot Message
       const botMsgId = `bot_${Date.now()}_${Math.random()}`;
       const botMsg = {
         id: botMsgId,
         type: 'bot',
         text: data.response,
         emotions: data.emotions,
+        timestamp: timeStr,
         audio: data.audio_base64 ? `data:audio/mp3;base64,${data.audio_base64}` : null,
         isNew: true, // triggers typewriter text animation
       };
@@ -336,7 +343,7 @@ function App() {
       console.error('API Error:', error);
       setMessages((prev) => [
         ...prev,
-        { id: `err_${Date.now()}`, type: 'bot', text: 'I encountered an issue. Please try again.', isNew: true },
+        { id: `err_${Date.now()}`, type: 'bot', text: 'I encountered an issue. Please try again.', timestamp: timeStr, isNew: true },
       ]);
     } finally {
       setIsLoading(false);
@@ -344,62 +351,51 @@ function App() {
   };
 
   const handleSendText = (textToSend) => {
-    const query = textToSend || inputText;
+    const query = textToSend || textInput;
     if (!query.trim()) return;
     const formData = new FormData();
     formData.append('text_input', query);
-    sendRequest('/chat', formData, query);
+    sendRequest('/chat', formData, query.trim());
   };
 
-  const handleSendAudioFile = (file) => {
-    const targetFile = file || audioFile;
-    if (!targetFile) return;
+  const handleAudioUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     const formData = new FormData();
-    formData.append('audio_file', targetFile);
-    sendRequest('/voice', formData, `Audio: ${targetFile.name}`);
+    formData.append('audio_file', file);
+    sendRequest('/voice', formData, `🎙️ Audio Note (${file.name})`);
+    setShowUploadPopup(false);
   };
 
-  const handleSendVideoFile = (file) => {
-    const targetFile = file || videoFile;
-    if (!targetFile) return;
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     const formData = new FormData();
-    formData.append('video_file', targetFile);
-    sendRequest('/video', formData, `Video: ${targetFile.name}`);
+    formData.append('video_file', file);
+    sendRequest('/video', formData, `📹 Video Note (${file.name})`);
+    setShowUploadPopup(false);
   };
 
+  // Audio Recording (Microphone)
   const startAudioRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorderRef.current = new MediaRecorder(stream);
-      const chunks = [];
-      mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (e) => audioChunksRef.current.push(e.data);
       mediaRecorderRef.current.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/wav' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
         const formData = new FormData();
-        formData.append('audio_file', blob, 'recording.wav');
-        await sendRequest('/voice', formData, '🎙️ Voice Recording');
+        formData.append('audio_file', audioBlob, 'mic_recording.wav');
+        await sendRequest('/voice', formData, '🎙️ Voice Message');
         stream.getTracks().forEach((track) => track.stop());
       };
+
       mediaRecorderRef.current.start();
       setIsRecordingAudio(true);
-      setIsAudioPaused(false);
-      setAudioTimer(0);
-    } catch (error) {
+    } catch (err) {
       alert('Microphone access denied or unavailable.');
-    }
-  };
-
-  const pauseAudioRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.pause();
-      setIsAudioPaused(true);
-    }
-  };
-
-  const resumeAudioRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
-      mediaRecorderRef.current.resume();
-      setIsAudioPaused(false);
     }
   };
 
@@ -407,52 +403,7 @@ function App() {
     if (mediaRecorderRef.current && isRecordingAudio) {
       mediaRecorderRef.current.stop();
       setIsRecordingAudio(false);
-      setIsAudioPaused(false);
     }
-  };
-
-  const openVideoModal = async () => {
-    setShowVideoModal(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (error) {
-      alert('Camera access denied or unavailable.');
-    }
-  };
-
-  const startVideoRecording = () => {
-    if (!streamRef.current) return;
-    mediaRecorderRef.current = new MediaRecorder(streamRef.current);
-    const chunks = [];
-    mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
-    mediaRecorderRef.current.onstop = async () => {
-      const blob = new Blob(chunks, { type: 'video/mp4' });
-      const formData = new FormData();
-      formData.append('video_file', blob, 'video_rec.mp4');
-      await sendRequest('/video', formData, '📹 Video Message');
-      closeVideoModal();
-    };
-    mediaRecorderRef.current.start();
-    setIsRecordingVideo(true);
-  };
-
-  const stopVideoRecording = () => {
-    if (mediaRecorderRef.current && isRecordingVideo) {
-      mediaRecorderRef.current.stop();
-      setIsRecordingVideo(false);
-    }
-  };
-
-  const closeVideoModal = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-    }
-    setShowVideoModal(false);
-    setIsRecordingVideo(false);
   };
 
   // --- Message Action Handlers (Read Aloud, Delete, Select) ---
@@ -460,30 +411,28 @@ function App() {
     setOpenDropdownId(null);
     if (msg.audio) {
       const audioObj = new Audio(msg.audio);
-      audioObj.play().catch((e) => console.error('Audio play error:', e));
+      audioObj.play().catch((err) => console.error('Audio playback error:', err));
     } else if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(msg.text);
       utterance.rate = 0.95;
       window.speechSynthesis.speak(utterance);
     } else {
-      alert('Speech synthesis is not supported on this browser.');
+      alert('Speech synthesis unavailable in your browser.');
     }
   };
 
-  const handleDeleteSingleMessage = async (msgId, msgIndex) => {
+  const handleDeleteSingleMessage = async (msgId, turnIndex) => {
     setOpenDropdownId(null);
     setMessages((prev) => prev.filter((m) => m.id !== msgId));
-    
-    // Sync backend deletion if turn index is available
-    if (msgIndex !== undefined && currentUser) {
+    if (turnIndex !== undefined && turnIndex !== null) {
       try {
         const formData = new FormData();
         formData.append('username', currentUser);
-        formData.append('index', msgIndex);
+        formData.append('index', turnIndex);
         await fetch('/delete_message', { method: 'POST', body: formData });
       } catch (err) {
-        console.error('Error deleting message from backend:', err);
+        console.error('Error deleting from backend database:', err);
       }
     }
   };
@@ -491,34 +440,32 @@ function App() {
   const handleToggleSelectMode = (msgId) => {
     setOpenDropdownId(null);
     setIsSelectMode(true);
-    setSelectedMsgIds((prev) => {
-      const updated = new Set(prev);
-      if (updated.has(msgId)) updated.delete(msgId);
-      else updated.add(msgId);
-      return updated;
-    });
+    setSelectedMsgIds((prev) => new Set(prev).add(msgId));
   };
 
   const handleCheckboxToggle = (msgId) => {
     setSelectedMsgIds((prev) => {
-      const updated = new Set(prev);
-      if (updated.has(msgId)) updated.delete(msgId);
-      else updated.add(msgId);
-      return updated;
+      const next = new Set(prev);
+      if (next.has(msgId)) next.delete(msgId);
+      else next.add(msgId);
+      if (next.size === 0) setIsSelectMode(false);
+      return next;
     });
   };
 
-  const handleBulkDelete = () => {
+  const handleDeleteSelectedMessages = () => {
     setMessages((prev) => prev.filter((m) => !selectedMsgIds.has(m.id)));
     setSelectedMsgIds(new Set());
     setIsSelectMode(false);
   };
 
-  // 1. Splash Loader
+  // 1. Splash Screen
   if (showSplash) {
     return (
-      <div className="splash-container">
-        <div className="splash-logo">😊</div>
+      <div className="splash-screen-container">
+        <div className="splash-logo-badge">
+          <Sparkles size={36} color="#ffffff" />
+        </div>
         <h1 className="splash-title">HEALIO</h1>
         <p className="splash-subtitle">AI Mental Wellness Companion</p>
         <div className="spinner-ring"></div>
@@ -526,50 +473,51 @@ function App() {
     );
   }
 
-  // 2. Premium Zen Glassmorphism Authentication Screen (Reference Image Layout)
+  // 2. Premium Glassmorphism Authentication Screen
   if (!loggedIn) {
     return (
       <div className="login-screen-wrapper">
-        {/* Soft Organic Gradient Blobs Canvas Background */}
+        {/* Abstract Soft Organic Gradient Blobs Canvas Background */}
         <div className="login-bg-canvas">
           <div className="gradient-blob blob-bottom-left"></div>
           <div className="gradient-blob blob-top-right"></div>
           <div className="gradient-blob blob-center-soft"></div>
         </div>
 
-        {/* Reference Image Style Dark Glass Card */}
-        <div className="ref-login-glass-card">
-          {/* Zen Ring Icon Header */}
-          <div className="ref-card-header">
-            <div className="zen-ring-icon">
-              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.5">
-                <circle cx="12" cy="12" r="4" />
-                <circle cx="12" cy="12" r="8.5" strokeDasharray="3 3" />
-              </svg>
+        {/* Floating Frosted Glass Login Card */}
+        <div className="login-glass-card">
+          {/* Header & Branding */}
+          <div className="glass-card-header">
+            <div className="healio-logo-badge">
+              <Sparkles size={26} color="#6C63FF" />
             </div>
-            <h1 className="ref-card-title">
-              {authMode === 'login' ? 'Welcome back!' : 'Create account'}
-            </h1>
-            <p className="ref-card-subtitle">
-              {authMode === 'login'
-                ? 'Sign in to access your guided meditations, daily practices, and personal journey'
-                : 'Sign up to start your guided meditations, daily practices, and personal journey'}
-            </p>
+            <h1 className="healio-brand-title">HEALIO</h1>
+            <p className="healio-brand-subtitle">AI Mental Wellness Companion</p>
+
+            <div className="welcome-headline-box">
+              <h2>{authMode === 'login' ? 'Welcome Back' : 'Begin Your Journey'}</h2>
+              <p>
+                {authMode === 'login'
+                  ? 'Continue your wellness journey with your trusted AI companion.'
+                  : 'Create your private, confidential space for emotional wellbeing.'}
+              </p>
+            </div>
           </div>
 
-          {/* Alert messages */}
-          {registerSuccess && <div className="ref-glass-alert success">{registerSuccess}</div>}
-          {loginError && <div className="ref-glass-alert error">{loginError}</div>}
+          {/* Error / Success Notifications */}
+          {registerSuccess && <div className="glass-alert success">{registerSuccess}</div>}
+          {loginError && <div className="glass-alert error">{loginError}</div>}
 
           {/* Form */}
           {authMode === 'login' ? (
-            <form onSubmit={handleLogin} className="ref-glass-form">
-              <div className="ref-input-group">
+            <form onSubmit={handleLogin} className="glass-form">
+              <div className="glass-input-group">
                 <label>Username</label>
-                <div className="ref-input-wrapper">
+                <div className="input-wrapper">
+                  <span className="input-icon"><User size={16} /></span>
                   <input
                     type="text"
-                    className="ref-glass-input"
+                    className="glass-input"
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -578,97 +526,79 @@ function App() {
                 </div>
               </div>
 
-              <div className="ref-input-group">
+              <div className="glass-input-group">
                 <label>Password</label>
-                <div className="ref-input-wrapper">
+                <div className="input-wrapper">
+                  <span className="input-icon">🔒</span>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    className="ref-glass-input"
-                    placeholder="••••••••"
+                    className="glass-input"
+                    placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                   <button
                     type="button"
-                    className="ref-btn-eye-toggle"
+                    className="btn-toggle-password"
                     onClick={() => setShowPassword((prev) => !prev)}
                     title={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
+                    {showPassword ? '🙈' : '👁️'}
                   </button>
                 </div>
               </div>
 
-              <div className="ref-actions-row">
-                <label className="ref-checkbox-label">
+              <div className="form-secondary-actions">
+                <label className="checkbox-container">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
-                  <span className="ref-custom-box"></span>
-                  <span>Remember me</span>
+                  <span className="custom-checkmark"></span>
+                  <span className="checkbox-label">Remember Me</span>
                 </label>
                 <a
                   href="#forgot"
-                  className="ref-forgot-link"
+                  className="forgot-link"
                   onClick={(e) => {
                     e.preventDefault();
-                    setUsername('admin');
-                    setPassword('password');
-                    alert('Filled demo credentials!\nUsername: admin\nPassword: password');
+                    alert('Demo Account Credentials:\nUsername: admin\nPassword: password');
                   }}
                 >
-                  Forgot password?
+                  Forgot Password?
                 </a>
               </div>
 
-              <button type="submit" className="ref-btn-solid-white" disabled={isSubmitting}>
-                {isSubmitting ? 'Logging In...' : 'Log In'}
+              <button type="submit" className="btn-glass-primary" disabled={isSubmitting}>
+                {isSubmitting ? 'Signing In...' : 'Sign In'}
               </button>
 
-              <div className="ref-or-divider">
-                <span>Or</span>
-              </div>
-
-              <button
-                type="button"
-                className="ref-btn-outline-pill"
-                onClick={() => {
-                  setUsername('admin');
-                  setPassword('password');
-                }}
-              >
-                <span className="demo-icon">💡</span> Quick Fill Demo Account (admin / password)
-              </button>
-
-              <div className="ref-footer-text">
+              <div className="auth-toggle-footer">
                 Don't have an account?{' '}
                 <button
                   type="button"
-                  className="ref-footer-link"
+                  className="auth-link-button"
                   onClick={() => {
                     setAuthMode('register');
                     setLoginError('');
                     setRegisterSuccess('');
                   }}
                 >
-                  Sign Up
+                  Register
                 </button>
               </div>
             </form>
           ) : (
-            <form onSubmit={handleRegister} className="ref-glass-form">
-              <div className="ref-input-group">
+            <form onSubmit={handleRegister} className="glass-form">
+              <div className="glass-input-group">
                 <label>Username</label>
-                <div className="ref-input-wrapper">
+                <div className="input-wrapper">
+                  <span className="input-icon"><User size={16} /></span>
                   <input
                     type="text"
-                    className="ref-glass-input"
+                    className="glass-input"
                     placeholder="Choose a username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -677,12 +607,13 @@ function App() {
                 </div>
               </div>
 
-              <div className="ref-input-group">
+              <div className="glass-input-group">
                 <label>Password</label>
-                <div className="ref-input-wrapper">
+                <div className="input-wrapper">
+                  <span className="input-icon">🔒</span>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    className="ref-glass-input"
+                    className="glass-input"
                     placeholder="Create a password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -690,23 +621,22 @@ function App() {
                   />
                   <button
                     type="button"
-                    className="ref-btn-eye-toggle"
+                    className="btn-toggle-password"
                     onClick={() => setShowPassword((prev) => !prev)}
+                    title={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
+                    {showPassword ? '🙈' : '👁️'}
                   </button>
                 </div>
               </div>
 
-              <div className="ref-input-group">
+              <div className="glass-input-group">
                 <label>Confirm Password</label>
-                <div className="ref-input-wrapper">
+                <div className="input-wrapper">
+                  <span className="input-icon">🔒</span>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    className="ref-glass-input"
+                    className="glass-input"
                     placeholder="Re-enter your password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -715,45 +645,74 @@ function App() {
                 </div>
               </div>
 
-              <button type="submit" className="ref-btn-solid-white" disabled={isSubmitting}>
-                {isSubmitting ? 'Creating Account...' : 'Sign Up'}
+              <button type="submit" className="btn-glass-primary" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating Account...' : 'Create Account'}
               </button>
 
-              <div className="ref-footer-text">
+              <div className="auth-toggle-footer">
                 Already have an account?{' '}
                 <button
                   type="button"
-                  className="ref-footer-link"
+                  className="auth-link-button"
                   onClick={() => {
                     setAuthMode('login');
                     setLoginError('');
                     setRegisterSuccess('');
                   }}
                 >
-                  Log In
+                  Sign In
                 </button>
               </div>
             </form>
           )}
+
+          <div className="demo-credentials-badge">
+            💡 Demo Account: <strong>admin</strong> / <strong>password</strong>
+          </div>
         </div>
       </div>
     );
   }
 
-  // 3. Main Mental Wellness Platform Interface
+  // 3. Main Mental Wellness Platform Interface (Refined Premium Design System)
   return (
     <div className="app-platform-layout">
-      {/* Minimal Header */}
-      <header className="header-modern">
+      {/* Hidden File Inputs for Audio/Video Upload */}
+      <input
+        type="file"
+        ref={audioInputRef}
+        accept="audio/*"
+        style={{ display: 'none' }}
+        onChange={handleAudioUpload}
+      />
+      <input
+        type="file"
+        ref={videoInputRef}
+        accept="video/*"
+        style={{ display: 'none' }}
+        onChange={handleVideoUpload}
+      />
+
+      {/* Abstract Soft Organic Canvas Background */}
+      <div className="platform-bg-canvas">
+        <div className="gradient-blob blob-bottom-left"></div>
+        <div className="gradient-blob blob-top-right"></div>
+        <div className="gradient-blob blob-center-soft"></div>
+      </div>
+
+      {/* Floating Top Header Bar */}
+      <header className="header-modern-floating">
         <div className="header-brand-group">
           <button
             className="sidebar-toggle-btn"
             title="Toggle Wellness Sidebar"
             onClick={() => setIsSidebarOpen((prev) => !prev)}
           >
-            ☰
+            <Menu size={18} />
           </button>
-          <span style={{ fontSize: '24px' }}>😊</span>
+          <div className="brand-logo-icon">
+            <Sparkles size={20} className="sparkle-svg-icon" />
+          </div>
           <div className="brand-text-container">
             <span className="brand-title-text">HEALIO</span>
             <span className="brand-subtitle-text">AI Mental Wellness Companion</span>
@@ -761,125 +720,203 @@ function App() {
         </div>
 
         <div className="header-user-actions">
+          <button className="glass-icon-btn" title="Search">
+            <Search size={16} />
+          </button>
+
+          <button className="glass-pill-btn" title="Clear Chat History" onClick={handleClearChat}>
+            <Sparkles size={14} className="sparkle-btn-icon" />
+            <span>Clear Chat</span>
+          </button>
+
+          <button className="glass-icon-btn" title="Notifications">
+            <Bell size={16} />
+          </button>
+
           <div className="user-profile-badge">
-            👤 <strong>{currentUser}</strong>
+            <div className="user-avatar-circle">
+              {currentUser ? currentUser.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="user-info-text">
+              <span className="user-name-label">{currentUser}</span>
+              <span className="user-plan-label">Premium</span>
+            </div>
+            <ChevronDown size={14} className="user-dropdown-arrow" />
           </div>
         </div>
       </header>
 
-      {/* Main Body */}
+      {/* Main Body Layout */}
       <div className="main-body-container">
-        {/* Collapsible Wellness Sidebar with Clear Chat & Logout at Bottom */}
+        {/* Floating Wellness Sidebar */}
         <aside className={`wellness-sidebar ${isSidebarOpen ? '' : 'collapsed'}`}>
-          {/* Single AI-Detected Current Mood Display */}
-          <div className="sidebar-box single-mood-box">
-            <h4>Current Mood</h4>
-            <div className="single-mood-display">
-              <span className="single-mood-emoji" title={`Bot Detected: ${detectedEmotionLabel}`}>{selectedMood}</span>
-              <div className="mood-meta">
-                <span className="mood-status-label">Bot Detected</span>
-                <strong className="mood-emotion-name">{detectedEmotionLabel}</strong>
-              </div>
+          <div className="sidebar-section-title">WELLNESS OVERVIEW</div>
+
+          {/* Current Mood Card */}
+          <div className="sidebar-box mood-card-floating">
+            <div className="mood-orb-wrapper">
+              <div className="ambient-mood-orb"></div>
+            </div>
+            <div className="mood-card-info">
+              <span className="card-mini-label">Current Mood</span>
+              <strong className="card-main-title">{detectedEmotionLabel || 'Calm'}</strong>
+              <span className="card-timestamp">Last updated • Just now</span>
             </div>
           </div>
 
           {/* Guided Breathing Tool Launcher */}
-          <div className="guided-breathing-card" onClick={() => setShowBreathingModal(true)}>
-            <span className="b-icon">🫁</span>
-            <div>
+          <div className="sidebar-interactive-card" onClick={() => setShowBreathingModal(true)}>
+            <div className="card-icon-circle green">
+              <Wind size={18} />
+            </div>
+            <div className="card-text-body">
               <h5>Guided Breathing</h5>
-              <p>2-minute relaxation exercise</p>
+              <p>2-min relaxation exercise</p>
+            </div>
+            <ChevronRight size={16} className="card-arrow" />
+          </div>
+
+          {/* Daily Affirmation Card */}
+          <div className="sidebar-interactive-card static-quote">
+            <div className="card-icon-circle purple">
+              <Quote size={18} />
+            </div>
+            <div className="card-text-body">
+              <h5>Daily Affirmation</h5>
+              <p className="quote-text-body">"{dailyAffirmation}"</p>
             </div>
           </div>
 
-          {/* Quick Affirmation Box */}
-          <div className="sidebar-box">
-            <h4>Daily Affirmation</h4>
-            <p style={{ fontSize: '12px', color: '#c7d2fe', lineHeight: '1.5', fontStyle: 'italic' }}>
-              "{dailyAffirmation}"
-            </p>
+          {/* Immediate Support Card */}
+          <div className="sidebar-interactive-card crisis-support">
+            <div className="card-icon-circle pink">
+              <Heart size={18} />
+            </div>
+            <div className="card-text-body">
+              <h5>Immediate Support</h5>
+              <p>If you are in crisis, call 988 (Lifeline) or reach out to a professional.</p>
+            </div>
+            <ChevronRight size={16} className="card-arrow" />
           </div>
 
-          {/* Emergency Support Notice */}
-          <div className="emergency-support-box">
-            <h5>Immediate Support</h5>
-            <p>If you are in crisis, call <strong>988</strong> (Lifeline) or reach out to a professional counselor.</p>
+          {/* Navigation Items */}
+          <div className="sidebar-nav-group">
+            <div className="nav-item">
+              <MessageCircle size={16} />
+              <span>Chat History</span>
+              <ChevronRight size={14} className="item-arrow" />
+            </div>
+            <div className="nav-item">
+              <BookOpen size={16} />
+              <span>Journal</span>
+              <ChevronRight size={14} className="item-arrow" />
+            </div>
+            <div className="nav-item">
+              <Wrench size={16} />
+              <span>Tools</span>
+              <ChevronRight size={14} className="item-arrow" />
+            </div>
+            <div className="nav-item">
+              <Settings size={16} />
+              <span>Settings</span>
+              <ChevronRight size={14} className="item-arrow" />
+            </div>
           </div>
 
-          {/* Moved Clear Chat & Logout Buttons to Sidebar Bottom */}
-          <div className="sidebar-bottom-actions">
-            <button className="btn-sidebar-action" onClick={handleClearChat}>
-              🗑️ Clear Chat History
-            </button>
-            <button className="btn-sidebar-action logout" onClick={handleLogout}>
-              🚪 Logout
+          {/* Logout Action at Bottom */}
+          <div className="sidebar-bottom-action-container">
+            <button className="nav-item logout-btn" onClick={handleLogout}>
+              <LogOut size={16} />
+              <span>Logout</span>
+              <ChevronRight size={14} className="item-arrow" />
             </button>
           </div>
         </aside>
 
-        {/* Chat Area */}
+        {/* Main Workspace Glass Container */}
         <main className="chat-main-area">
-          <div className="messages-scroll-feed">
-            {messages.length === 0 ? (
-              <div className="welcome-experience-container">
-                <div className="greeting-header">
-                  <h2>{getGreeting()}, {currentUser}</h2>
-                  <p>How are you feeling today? I'm here to listen without judgment. Take your time.</p>
-                </div>
+          <div className="workspace-glass-card">
+            {/* Header Greeting Banner */}
+            <div className="chat-welcome-banner">
+              <h2>
+                {getGreeting()}, <span className="highlight-username">{currentUser}</span> ✨
+              </h2>
+              <h3>How are you feeling today?</h3>
+              <p>I'm here to listen, support, and help you feel better.</p>
+            </div>
 
-                <div className="affirmation-banner">
-                  ✨ "{dailyAffirmation}"
+            {/* Horizontal Suggestion Pill Cards */}
+            <div className="suggestion-pills-row">
+              <button
+                className="suggestion-pill-card"
+                onClick={() => handleSendText("I feel overwhelmed with everything right now.")}
+              >
+                <div className="pill-icon-circle rose">
+                  <Heart size={16} />
                 </div>
+                <div className="pill-text-content">
+                  <span className="pill-title">I feel overwhelmed</span>
+                  <span className="pill-desc">Help me manage stress</span>
+                </div>
+              </button>
 
-                <div className="large-suggestion-grid">
-                  <div
-                    className="suggestion-card-large"
-                    onClick={() => handleSendText("I've been feeling anxious today.")}
-                  >
-                    <span className="card-icon">🧘</span>
-                    <span>I've been feeling anxious today</span>
-                  </div>
-                  <div
-                    className="suggestion-card-large"
-                    onClick={() => handleSendText("Help me relax and calm my mind.")}
-                  >
-                    <span className="card-icon">🌊</span>
-                    <span>Help me relax</span>
-                  </div>
-                  <div
-                    className="suggestion-card-large"
-                    onClick={() => handleSendText("I can't sleep and my mind is racing.")}
-                  >
-                    <span className="card-icon">🌙</span>
-                    <span>I can't sleep</span>
-                  </div>
-                  <div
-                    className="suggestion-card-large"
-                    onClick={() => handleSendText("I feel overwhelmed with everything right now.")}
-                  >
-                    <span className="card-icon">🌿</span>
-                    <span>I feel overwhelmed</span>
-                  </div>
-                  <div
-                    className="suggestion-card-large"
-                    onClick={() => handleSendText("I had a good day and want to reflect on it!")}
-                  >
-                    <span className="card-icon">☀️</span>
-                    <span>I had a good day</span>
-                  </div>
-                  <div
-                    className="suggestion-card-large"
-                    onClick={() => setShowBreathingModal(true)}
-                  >
-                    <span className="card-icon">🫁</span>
-                    <span>Recommend breathing exercises</span>
-                  </div>
+              <button
+                className="suggestion-pill-card"
+                onClick={() => handleSendText("I can't sleep and my thoughts are racing.")}
+              >
+                <div className="pill-icon-circle lavender">
+                  <Moon size={16} />
                 </div>
-              </div>
-            ) : (
-              messages.map((msg, idx) => (
+                <div className="pill-text-content">
+                  <span className="pill-title">I can't sleep</span>
+                  <span className="pill-desc">Improve my sleep</span>
+                </div>
+              </button>
+
+              <button
+                className="suggestion-pill-card"
+                onClick={() => handleSendText("Help me relax and calm my mind.")}
+              >
+                <div className="pill-icon-circle green">
+                  <Wind size={16} />
+                </div>
+                <div className="pill-text-content">
+                  <span className="pill-title">Help me relax</span>
+                  <span className="pill-desc">Calm my mind</span>
+                </div>
+              </button>
+
+              <button
+                className="suggestion-pill-card"
+                onClick={() => handleSendText("I feel happy and had a good day!")}
+              >
+                <div className="pill-icon-circle amber">
+                  <Sun size={16} />
+                </div>
+                <div className="pill-text-content">
+                  <span className="pill-title">I feel happy</span>
+                  <span className="pill-desc">Share my joy</span>
+                </div>
+              </button>
+
+              <button
+                className="suggestion-pill-card"
+                onClick={() => handleSendText("Just need to talk to someone right now.")}
+              >
+                <div className="pill-icon-circle pink">
+                  <Smile size={16} />
+                </div>
+                <div className="pill-text-content">
+                  <span className="pill-title">Just need to talk</span>
+                  <span className="pill-desc">I'm here for you</span>
+                </div>
+              </button>
+            </div>
+
+            {/* Messages Stream */}
+            <div className="messages-scroll-feed">
+              {messages.map((msg, idx) => (
                 <div key={msg.id || idx} className={`msg-wrapper-container ${msg.type === 'user' ? 'user' : 'bot'}`}>
-                  {/* Multi-select Checkbox */}
                   {isSelectMode && (
                     <input
                       type="checkbox"
@@ -889,15 +926,13 @@ function App() {
                     />
                   )}
 
-                  <div className="msg-avatar">
-                    {msg.type === 'user' ? '👤' : '😊'}
-                  </div>
+                  {msg.type === 'bot' && (
+                    <div className="msg-avatar bot-sparkle-avatar">
+                      <Sparkles size={16} />
+                    </div>
+                  )}
 
                   <div className={`msg-bubble ${msg.type === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
-                    {msg.type === 'bot' && (
-                      <div className="msg-bot-header">HEALIO AI</div>
-                    )}
-
                     <div className="msg-content">
                       {msg.type === 'bot' && msg.isNew ? (
                         <TypewriterText text={msg.text} speed={12} />
@@ -905,19 +940,28 @@ function App() {
                         msg.text
                       )}
                     </div>
+                    <div className="msg-time-stamp">
+                      {msg.timestamp || '10:24 AM'} {msg.type === 'user' && '✓✓'}
+                    </div>
                   </div>
 
-                  {/* 3-Dots Hover Action Menu Button */}
+                  {msg.type === 'user' && (
+                    <div className="msg-avatar user-icon-avatar">
+                      <User size={16} />
+                    </div>
+                  )}
+
+                  {/* 3-Dots Action Button */}
                   <button
                     type="button"
                     className={`btn-msg-dots ${openDropdownId === msg.id ? 'active' : ''}`}
                     title="Message Options"
                     onClick={() => setOpenDropdownId((prev) => (prev === msg.id ? null : msg.id))}
                   >
-                    ⋮
+                    <MoreVertical size={16} />
                   </button>
 
-                  {/* 3-Dots Dropdown Popup */}
+                  {/* Options Menu */}
                   {openDropdownId === msg.id && (
                     <div className="msg-options-dropdown">
                       <button
@@ -925,217 +969,122 @@ function App() {
                         className="dropdown-item-btn"
                         onClick={() => handleReadAloud(msg)}
                       >
-                        🔊 <span>Read Aloud</span>
+                        <Volume2 size={15} /> <span>Read Aloud</span>
                       </button>
                       <button
                         type="button"
                         className="dropdown-item-btn delete"
                         onClick={() => handleDeleteSingleMessage(msg.id, msg.turnIndex ?? Math.floor(idx / 2))}
                       >
-                        🗑️ <span>Delete Message</span>
+                        <Trash2 size={15} /> <span>Delete Message</span>
                       </button>
                       <button
                         type="button"
                         className="dropdown-item-btn"
                         onClick={() => handleToggleSelectMode(msg.id)}
                       >
-                        ☑️ <span>Select</span>
+                        <CheckSquare size={15} /> <span>Select</span>
                       </button>
                     </div>
                   )}
                 </div>
-              ))
-            )}
+              ))}
 
-            {isLoading && (
-              <div className="msg-wrapper-container bot">
-                <div className="msg-avatar">😊</div>
-                <div className="msg-bubble bubble-bot">
-                  <div className="msg-bot-header">HEALIO AI</div>
-                  <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Thinking & listening...</span>
+              {isLoading && (
+                <div className="msg-wrapper-container bot">
+                  <div className="msg-avatar bot-sparkle-avatar">
+                    <Sparkles size={16} />
+                  </div>
+                  <div className="msg-bubble bubble-bot">
+                    <span style={{ color: '#64748b', fontStyle: 'italic' }}>Thinking & listening...</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Bulk Delete Floating Bar */}
-            {isSelectMode && (
-              <div className="bulk-delete-bar">
-                <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>
-                  {selectedMsgIds.size} message(s) selected
-                </span>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="btn-bulk-delete" onClick={handleBulkDelete} disabled={selectedMsgIds.size === 0}>
-                    🗑️ Delete Selected
-                  </button>
-                  <button className="btn-nav-outline" onClick={() => { setIsSelectMode(false); setSelectedMsgIds(new Set()); }}>
-                    Cancel
+              {/* Bulk Delete Bar */}
+              {isSelectMode && (
+                <div className="bulk-delete-bar">
+                  <span>{selectedMsgIds.size} message(s) selected</span>
+                  <button className="btn-bulk-delete" onClick={handleDeleteSelectedMessages}>
+                    <Trash2 size={15} /> Delete Selected
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Floating Input Capsule & Attachment Popup Bar */}
-          <div className="floating-input-panel">
-            {(audioFile || videoFile) && (
-              <div className="media-preview-bar">
-                {audioFile && (
-                  <div className="media-tag">
-                    🎵 Audio: {audioFile.name}
-                    <button onClick={() => setAudioFile(null)}>✕</button>
-                  </div>
-                )}
-                {videoFile && (
-                  <div className="media-tag">
-                    📹 Video: {videoFile.name}
-                    <button onClick={() => setVideoFile(null)}>✕</button>
-                  </div>
-                )}
-              </div>
-            )}
-
+            {/* Bottom Floating Input Capsule */}
             <div className="input-capsule-bar">
-              <div className="paperclip-container" ref={paperclipMenuRef}>
+              <button
+                className={`btn-paperclip ${showUploadPopup ? 'active' : ''}`}
+                title="Upload Media"
+                onClick={() => setShowUploadPopup((prev) => !prev)}
+              >
+                <Paperclip size={18} />
+              </button>
+
+              {/* Paperclip Upload Popup */}
+              {showUploadPopup && (
+                <div className="paperclip-popup-menu">
+                  <button className="popup-item-btn" onClick={() => audioInputRef.current?.click()}>
+                    <Mic size={16} />
+                    <span>Upload Audio</span>
+                  </button>
+                  <button className="popup-item-btn" onClick={() => videoInputRef.current?.click()}>
+                    <Image size={16} />
+                    <span>Upload Video</span>
+                  </button>
+                </div>
+              )}
+
+              <textarea
+                ref={textareaRef}
+                className="textarea-auto-expand"
+                placeholder="Tell me what's on your mind..."
+                value={textInput}
+                rows={1}
+                onChange={(e) => setTextInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (textInput.trim()) {
+                      handleSendText(textInput);
+                    }
+                  }
+                }}
+              />
+
+              <div className="right-action-group">
                 <button
                   type="button"
-                  className={`btn-paperclip ${showPaperclipMenu ? 'active' : ''}`}
-                  title="Attach Media Files"
-                  onClick={() => setShowPaperclipMenu((prev) => !prev)}
-                  disabled={isLoading || isRecordingAudio}
+                  className="btn-media-icon"
+                  title="Photo / Video Attachment"
+                  onClick={() => videoInputRef.current?.click()}
                 >
-                  📎
+                  <Image size={18} />
                 </button>
 
-                {showPaperclipMenu && (
-                  <div className="paperclip-popup-menu">
-                    <button
-                      type="button"
-                      className="popup-option-btn"
-                      onClick={() => {
-                        setShowPaperclipMenu(false);
-                        audioInputFileRef.current?.click();
-                      }}
-                    >
-                      <span>🎵</span>
-                      <span>Upload Audio File</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="popup-option-btn"
-                      onClick={() => {
-                        setShowPaperclipMenu(false);
-                        videoInputFileRef.current?.click();
-                      }}
-                    >
-                      <span>🎬</span>
-                      <span>Upload Video File</span>
-                    </button>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  className={`btn-media-icon ${isRecordingAudio ? 'recording' : ''}`}
+                  title="Voice Recording"
+                  onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
+                >
+                  <Mic size={18} />
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-send-circular"
+                  disabled={!textInput.trim() && !isRecordingAudio}
+                  onClick={() => {
+                    if (textInput.trim()) {
+                      handleSendText(textInput);
+                    }
+                  }}
+                >
+                  <Send size={16} />
+                </button>
               </div>
-
-              <input
-                type="file"
-                accept="audio/*"
-                ref={audioInputFileRef}
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  if (e.target.files[0]) {
-                    setAudioFile(e.target.files[0]);
-                    handleSendAudioFile(e.target.files[0]);
-                  }
-                }}
-              />
-              <input
-                type="file"
-                accept="video/*"
-                ref={videoInputFileRef}
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  if (e.target.files[0]) {
-                    setVideoFile(e.target.files[0]);
-                    handleSendVideoFile(e.target.files[0]);
-                  }
-                }}
-              />
-
-              {isRecordingAudio ? (
-                <div className="voice-recording-inline-bar">
-                  <div className="recording-indicator">
-                    <span className={`rec-dot ${isAudioPaused ? 'paused' : 'pulsing'}`}></span>
-                    <span className="rec-timer">
-                      {isAudioPaused ? 'Paused' : `Recording ${audioTimer}s`}
-                    </span>
-                  </div>
-
-                  <div className="recording-controls">
-                    <button
-                      type="button"
-                      className="btn-rec-control"
-                      onClick={isAudioPaused ? resumeAudioRecording : pauseAudioRecording}
-                    >
-                      {isAudioPaused ? '▶️ Resume' : '⏸️ Pause'}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-send-rec"
-                      onClick={stopAudioRecording}
-                    >
-                      ➔
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <textarea
-                    className="textarea-auto-expand"
-                    rows="1"
-                    placeholder="Tell me what's on your mind..."
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendText();
-                      }
-                    }}
-                    disabled={isLoading}
-                  />
-
-                  <div className="right-action-group">
-                    <button
-                      type="button"
-                      className="btn-media-icon"
-                      title="Record Webcam Video"
-                      onClick={openVideoModal}
-                      disabled={isLoading}
-                    >
-                      📷
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-media-icon"
-                      title="Record Voice Audio"
-                      onClick={startAudioRecording}
-                      disabled={isLoading}
-                    >
-                      🎙️
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-send-circular"
-                      onClick={() => handleSendText()}
-                      disabled={isLoading || (!inputText.trim() && !audioFile && !videoFile)}
-                    >
-                      ➔
-                    </button>
-                  </div>
-                </>
-              )}
             </div>
           </div>
         </main>
@@ -1143,42 +1092,17 @@ function App() {
 
       {/* Guided Breathing Exercise Modal */}
       {showBreathingModal && (
-        <div className="breathing-modal-overlay">
-          <div className="breathing-card">
-            <h3>🫁 Guided Breathing Session</h3>
-            <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '6px' }}>Focus on your breath and relax your body.</p>
-            
+        <div className="breathing-modal-overlay" onClick={() => setShowBreathingModal(false)}>
+          <div className="breathing-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Guided Breathing Exercise</h3>
+            <p className="modal-desc">Follow the relaxing circle animation to calm your mind.</p>
             <div className="breathing-circle-wrapper">
-              <span style={{ fontSize: '16px', fontWeight: '700', color: '#ffffff' }}>{breathingText}</span>
+              <div className="breathing-circle-pulse"></div>
             </div>
-
-            <button className="btn-primary-purple" style={{ width: 'auto', padding: '10px 28px' }} onClick={() => setShowBreathingModal(false)}>
-              Complete Session
+            <h4 className="breathing-instruction">{breathingText}</h4>
+            <button className="btn-glass-primary" onClick={() => setShowBreathingModal(false)}>
+              Done / Close
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Video Recorder Modal */}
-      {showVideoModal && (
-        <div className="breathing-modal-overlay">
-          <div className="breathing-card" style={{ maxWidth: '480px' }}>
-            <h3>📹 Record Video Message</h3>
-            <video ref={videoRef} autoPlay muted style={{ width: '100%', height: '260px', borderRadius: '12px', background: '#000', margin: '15px 0', objectFit: 'cover' }} />
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              {!isRecordingVideo ? (
-                <button className="btn-primary-purple" style={{ width: 'auto' }} onClick={startVideoRecording}>
-                  🔴 Start Recording
-                </button>
-              ) : (
-                <button className="btn-primary-purple" style={{ width: 'auto', background: '#ef4444' }} onClick={stopVideoRecording}>
-                  ⏹️ Stop & Send
-                </button>
-              )}
-              <button className="btn-nav-outline" onClick={closeVideoModal}>
-                Cancel
-              </button>
-            </div>
           </div>
         </div>
       )}
