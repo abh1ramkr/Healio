@@ -61,7 +61,7 @@ h1, h2, h3, h4, h5, h6 {
    ========================================================================== */
 
 :root {
-  --login-bg-image: url('/login-bg.png'); /* Configurable background image override */
+  --login-bg-image: url('./assets/login-bg.png'); /* Configurable background image override */
 }
 
 .login-screen-wrapper {
