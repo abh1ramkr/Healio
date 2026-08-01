@@ -1737,11 +1737,7 @@ function App() {
 
                       <div className={`msg-bubble ${msg.type === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
                         <div className="msg-content">
-                          {msg.type === 'bot' && msg.isNew ? (
-                            <TypewriterText text={msg.text} speed={12} />
-                          ) : (
-                            msg.text
-                          )}
+                          {msg.text}
                         </div>
                         <div className="msg-time-stamp">
                           {msg.timestamp || '10:24 AM'} {msg.type === 'user' && '✓✓'}
