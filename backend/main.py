@@ -75,11 +75,73 @@ emotion_labels = ['admiration', 'amusement', 'anger', 'annoyance', 'approval', '
 
 API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyBa66toL3k0j5ySsxcTt3O9lXDrwtbJz5o")
 FALLBACK_MODELS = [
-    "gemini-1.5-flash",
     "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
     "gemini-1.5-pro",
     "gemini-pro"
 ]
+
+def get_gemini_response(user_input, emotions, username="default"):
+    # Reload environment variables to pick up any new API key in .env
+    load_dotenv(env_path, override=True)
+    api_key = os.getenv("GEMINI_API_KEY", API_KEY)
+
+    user_history = get_chat_history_db(username)
+    history_text = "\n".join([f"User: {h[0]}\nBot: {h[2]}" for h in user_history[-5:]])
+    top_emotion = emotions[0][0] if emotions else "neutral"
+
+    prompt = (
+        f"You are an expert mental health consultant and therapist named HEALIO.\n"
+        f"Chat History:\n{history_text}\n\n"
+        f"The user is experiencing the emotion: {top_emotion}.\n"
+        f"User input: '{user_input}'\n\n"
+        f"Respond as a deeply caring, empathetic mental health companion:\n"
+        f"1. Acknowledge and validate their emotion directly.\n"
+        f"2. Offer tailored, actionable mental wellness coping advice or exercises relevant to their exact situation.\n"
+        f"3. End with a gentle, thoughtful follow-up question.\n"
+        f"Keep the tone warm, soothing, professional, and concise (2-4 sentences).\n"
+    )
+
+    # 1. Try official google-generativeai SDK if available
+    if GENAI_AVAILABLE and api_key and len(api_key) > 10:
+        try:
+            genai.configure(api_key=api_key)
+            for m_name in ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]:
+                try:
+                    g_model = genai.GenerativeModel(m_name)
+                    res = g_model.generate_content(prompt)
+                    if res and res.text and len(res.text.strip()) > 10:
+                        return res.text.strip()
+                except Exception as inner_e:
+                    print(f"GenAI SDK model {m_name} error: {inner_e}")
+                    continue
+        except Exception as e:
+            print(f"GenAI SDK config error: {e}")
+
+    # 2. Try REST API endpoints as secondary LLM fallback
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    headers = {"Content-Type": "application/json"}
+
+    if api_key and len(api_key) > 10:
+        for model_name in FALLBACK_MODELS:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+            try:
+                response = requests.post(url, headers=headers, json=payload, timeout=10)
+                if response.status_code == 200:
+                    response_data = response.json()
+                    if 'candidates' in response_data and response_data['candidates']:
+                        candidate_text = response_data['candidates'][0]['content']['parts'][0]['text']
+                        if candidate_text and len(candidate_text.strip()) > 10:
+                            return candidate_text.strip()
+                else:
+                    print(f"Gemini API model {model_name} returned status {response.status_code}: {response.text[:150]}")
+            except Exception as e:
+                print(f"Gemini REST API model {model_name} error: {e}")
+                continue
+
+    # 3. Rich, dynamic contextual fallback generator
+    return generate_dynamic_empathetic_response(user_input, emotions)
 
 def generate_vector_embedding(text: str) -> List[float]:
     if not text:
