@@ -75,134 +75,57 @@ emotion_labels = ['admiration', 'amusement', 'anger', 'annoyance', 'approval', '
 
 API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyBa66toL3k0j5ySsxcTt3O9lXDrwtbJz5o")
 FALLBACK_MODELS = [
+    "gemini-1.5-flash",
     "gemini-2.0-flash",
-    "gemini-flash-latest",
-    "gemini-3.6-flash",
-    "gemini-2.0-flash-lite"
+    "gemini-1.5-pro",
+    "gemini-pro"
 ]
 
-def generate_vector_embedding(text: str) -> List[float]:
-    """
-    Generate a 64-dimensional vector embedding for text using token/char distributions and PyTorch tensor normalization.
-    """
-    if not text:
-        return [0.0] * 64
-    try:
-        encoded = tokenizer(text, max_length=64, padding="max_length", truncation=True, return_tensors="pt")
-        input_ids = encoded["input_ids"].float()
-        normalized = torch.nn.functional.normalize(input_ids, p=2, dim=1)
-        vector_list = normalized[0].tolist()
-        return [round(val, 6) for val in vector_list]
-    except Exception as e:
-        print(f"Vector embedding calculation error: {e}")
-        return [round((hash(text + str(i)) % 1000) / 1000.0, 6) for i in range(64)]
+def generate_dynamic_empathetic_response(user_input: str, emotions: list) -> str:
+    top_emotion = emotions[0][0] if emotions else "neutral"
+    user_lower = user_input.lower()
 
-def register_user_db(username: str, password: str) -> bool:
-    password_hash = hash_password(password)
-    if db is not None:
-        try:
-            doc_ref = db.collection("users").document(username)
-            if doc_ref.get().exists:
-                return False
-            doc_ref.set({
-                "username": username,
-                "password_hash": password_hash,
-                "created_at": firestore.SERVER_TIMESTAMP
-            })
-            return True
-        except Exception as e:
-            print(f"Firestore register error: {e}")
-    
-    if username in fallback_users:
-        return False
-    fallback_users[username] = {
-        "username": username,
-        "password_hash": password_hash,
-        "created_at": time.time()
-    }
-    return True
-
-def verify_user_db(username: str, password: str) -> bool:
-    password_hash = hash_password(password)
-    if db is not None:
-        try:
-            doc_ref = db.collection("users").document(username)
-            doc = doc_ref.get()
-            if doc.exists:
-                data = doc.to_dict()
-                return data.get("password_hash") == password_hash
-        except Exception as e:
-            print(f"Firestore login verify error: {e}")
-    
-    user = fallback_users.get(username)
-    if user:
-        return user["password_hash"] == password_hash
-    return False
-
-def save_chat_turn_db(username: str, user_text: str, emotions_text: str, bot_response: str):
-    vector = generate_vector_embedding(f"{user_text} {bot_response}")
-    timestamp = time.time()
-    turn_data = {
-        "user_text": user_text,
-        "emotions": emotions_text,
-        "bot_response": bot_response,
-        "vector": vector,
-        "timestamp": timestamp
-    }
-    
-    if db is not None:
-        try:
-            user_ref = db.collection("users").document(username)
-            user_ref.collection("history").add(turn_data)
-        except Exception as e:
-            print(f"Firestore save chat turn error: {e}")
-            
-    if username not in fallback_history:
-        fallback_history[username] = []
-    fallback_history[username].append(turn_data)
-
-def get_chat_history_db(username: str) -> List[tuple]:
-    history_tuples = []
-    if db is not None:
-        try:
-            user_ref = db.collection("users").document(username)
-            docs = user_ref.collection("history").order_by("timestamp").stream()
-            for doc in docs:
-                d = doc.to_dict()
-                history_tuples.append((d.get("user_text", ""), d.get("emotions", ""), d.get("bot_response", "")))
-            if history_tuples:
-                return history_tuples
-        except Exception as e:
-            print(f"Firestore get history error: {e}")
-
-    user_turns = fallback_history.get(username, [])
-    for d in user_turns:
-        history_tuples.append((d.get("user_text", ""), d.get("emotions", ""), d.get("bot_response", "")))
-    return history_tuples
-
-def transcribe_audio_video(file_path):
-    if not file_path or not Path(file_path).exists():
-        return ""
-    try:
-        result = model.transcribe(str(file_path))
-        return result["text"].strip()
-    except Exception as e:
-        print(f"Transcription error: {e}")
-        return ""
-
-def detect_emotion(text):
-    if not text or not text.strip():
-        return [("neutral", 1.0)]
-    try:
-        inputs = tokenizer(text, return_tensors="pt")
-        outputs = emotion_model(**inputs)
-        probs = torch.softmax(outputs.logits, dim=-1)
-        top_emotions = torch.topk(probs, k=3)
-        detected_emotions = [(emotion_labels[i], float(probs[0][i])) for i in top_emotions.indices[0] if float(probs[0][i]) > 0.05]
-        return detected_emotions if detected_emotions else [("neutral", 1.0)]
-    except Exception as e:
-        print(f"Emotion detection error: {e}")
-        return [("neutral", 1.0)]
+    if "sleep" in user_lower or "insomnia" in user_lower or "night" in user_lower or "bed" in user_lower or "racing" in user_lower:
+        return (
+            f"I hear how exhausting it is when you can't sleep and your thoughts won't slow down. "
+            f"When feeling {top_emotion}, try putting away screens and practicing 4-7-8 breathing: inhale for 4s, hold for 7s, and exhale for 8s. "
+            f"Would you like me to guide you through a quick relaxation exercise right now?"
+        )
+    elif "job" in user_lower or "work" in user_lower or "career" in user_lower or "interview" in user_lower or "boss" in user_lower or "hired" in user_lower:
+        return (
+            f"Career pressures and job uncertainty can feel heavy. It is completely natural to feel {top_emotion} under work-related stress. "
+            f"Remember to break big challenges into small, manageable steps today. Take a short pause to stretch or step outside for fresh air. "
+            f"What specific aspect of work or job search is weighing on you most right now?"
+        )
+    elif "family" in user_lower or "relationship" in user_lower or "friend" in user_lower or "parent" in user_lower or "partner" in user_lower or "home" in user_lower:
+        return (
+            f"Family and personal relationships carry deep emotional weight. Navigating these situations often brings up feelings of {top_emotion}. "
+            f"Giving yourself space to process your feelings and boundaries is very important. "
+            f"How are you taking care of your own emotional needs while dealing with family or personal matters?"
+        )
+    elif "anxious" in user_lower or "overwhelmed" in user_lower or "panic" in user_lower or "stress" in user_lower or "worry" in user_lower:
+        return (
+            f"I hear you. Feeling overwhelmed or anxious can make everything feel intense. "
+            f"Let's ground ourselves together: name 3 things you can see around you right now, and take one slow, deep breath. "
+            f"You don't have to solve everything today—just focus on this present moment. How does your body feel right now?"
+        )
+    elif "good" in user_lower or "happy" in user_lower or "great" in user_lower or "excited" in user_lower or "accomplished" in user_lower:
+        return (
+            f"I am so glad to hear that! Celebrating moments of positivity and {top_emotion} is a wonderful way to build mental resilience. "
+            f"What was a highlight or favorite part of your experience today?"
+        )
+    elif "sad" in user_lower or "lonely" in user_lower or "cry" in user_lower or "depressed" in user_lower or "hurt" in user_lower:
+        return (
+            f"I'm really sorry you're feeling down. Experiencing {top_emotion} is tough, but please know you don't have to carry it all by yourself. "
+            f"Be extra gentle with yourself today—maybe grab a warm drink or listen to comforting music. "
+            f"What is something small that usually brings you comfort when you feel this way?"
+        )
+    else:
+        return (
+            f"Thank you for sharing that with me. I hear that you're sensing {top_emotion} around this situation ({user_input[:40]}...). "
+            f"It takes courage to express how you feel. Take a deep breath and give yourself credit for reaching out. "
+            f"Can you tell me a bit more about what's been happening so I can support you best?"
+        )
 
 def get_gemini_response(user_input, emotions, username="default"):
     user_history = get_chat_history_db(username)
@@ -218,7 +141,6 @@ def get_gemini_response(user_input, emotions, username="default"):
         f"- Address the user's emotion and situation directly.\n"
         f"- Offer practical, evidence-based advice, coping strategies, or exercises for their emotional state.\n"
         f"- Ask a thoughtful follow-up question to encourage further conversation.\n"
-        f"- If the user is sad, anxious, or stressed, suggest specific methods to reduce those feelings (e.g., breathing exercises, journaling, reaching out to friends, etc.).\n"
         f"- Be empathetic, supportive, and never judgmental.\n"
         f"- Keep your response concise and actionable.\n"
     )
@@ -226,21 +148,23 @@ def get_gemini_response(user_input, emotions, username="default"):
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     headers = {"Content-Type": "application/json"}
 
-    if not API_KEY:
-        return "API key not configured. Please set GEMINI_API_KEY in .env"
+    if API_KEY and len(API_KEY) > 10:
+        for model_name in FALLBACK_MODELS:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={API_KEY}"
+            try:
+                response = requests.post(url, headers=headers, json=payload, timeout=12)
+                if response.status_code == 200:
+                    response_data = response.json()
+                    if 'candidates' in response_data and response_data['candidates']:
+                        candidate_text = response_data['candidates'][0]['content']['parts'][0]['text']
+                        if candidate_text and len(candidate_text.strip()) > 10:
+                            return candidate_text.strip()
+            except Exception as e:
+                print(f"Gemini API model {model_name} error: {e}")
+                continue
 
-    for model_name in FALLBACK_MODELS:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={API_KEY}"
-        try:
-            response = requests.post(url, headers=headers, json=payload, timeout=15)
-            if response.status_code == 200:
-                response_data = response.json()
-                if 'candidates' in response_data and response_data['candidates']:
-                    return response_data['candidates'][0]['content']['parts'][0]['text']
-        except Exception:
-            continue
-
-    return "I'm here to support you. Can you tell me more about what you're experiencing? For sadness or stress, I can suggest coping methods like deep breathing, journaling, or talking to someone you trust."
+    # Intelligent dynamic fallback when API key is unconfigured or rate-limited
+    return generate_dynamic_empathetic_response(user_input, emotions)
 
 def text_to_speech(text):
     try:
