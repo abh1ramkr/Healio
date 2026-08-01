@@ -4,7 +4,7 @@ import {
   Menu, Sparkles, Search, Bell, ChevronRight, ChevronDown, 
   Wind, Quote, Heart, Paperclip, Image, Mic, Send, 
   Trash2, Volume2, CheckSquare, LogOut, MoreVertical,
-  Sun, Moon, Smile, MessageCircle, User, BookOpen, Wrench, Settings, Sparkle
+  Sun, Moon, Smile, MessageCircle, User, BookOpen, Wrench, Settings, AlertTriangle
 } from 'lucide-react';
 
 // Dynamic Time-based Greeting Helper
@@ -103,6 +103,11 @@ function App() {
   const [showBreathingModal, setShowBreathingModal] = useState(false);
   const [breathingText, setBreathingText] = useState('Inhale slowly...');
 
+  // Modal & Dropdown Confirmation States
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+
   // Chat & Message States
   const [messages, setMessages] = useState([]);
   const [textInput, setTextInput] = useState('');
@@ -140,6 +145,9 @@ function App() {
       }
       if (!e.target.closest('.paperclip-popup-menu') && !e.target.closest('.btn-paperclip')) {
         setShowUploadPopup(false);
+      }
+      if (!e.target.closest('.user-dropdown-menu') && !e.target.closest('.user-profile-badge')) {
+        setShowUserDropdown(false);
       }
     };
     document.addEventListener('click', handleOutsideClick);
@@ -278,7 +286,9 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
+  const confirmLogout = () => {
+    setShowLogoutModal(false);
+    setShowUserDropdown(false);
     setLoggedIn(false);
     setCurrentUser('');
     setMessages([]);
@@ -288,7 +298,8 @@ function App() {
     setRegisterSuccess('');
   };
 
-  const handleClearChat = async () => {
+  const confirmClearChat = async () => {
+    setShowClearModal(false);
     if (!currentUser) return;
     try {
       const formData = new FormData();
@@ -724,24 +735,45 @@ function App() {
             <Search size={16} />
           </button>
 
-          <button className="glass-pill-btn" title="Clear Chat History" onClick={handleClearChat}>
-            <Sparkles size={14} className="sparkle-btn-icon" />
-            <span>Clear Chat</span>
-          </button>
-
           <button className="glass-icon-btn" title="Notifications">
             <Bell size={16} />
           </button>
 
-          <div className="user-profile-badge">
-            <div className="user-avatar-circle">
-              {currentUser ? currentUser.charAt(0).toUpperCase() : 'U'}
+          <div className="user-profile-wrapper">
+            <div
+              className="user-profile-badge"
+              onClick={() => setShowUserDropdown((prev) => !prev)}
+            >
+              <div className="user-avatar-circle">
+                {currentUser ? currentUser.charAt(0).toUpperCase() : 'U'}
+              </div>
+              <div className="user-info-text">
+                <span className="user-name-label">{currentUser}</span>
+                <span className="user-plan-label">Premium</span>
+              </div>
+              <ChevronDown size={14} className={`user-dropdown-arrow ${showUserDropdown ? 'active' : ''}`} />
             </div>
-            <div className="user-info-text">
-              <span className="user-name-label">{currentUser}</span>
-              <span className="user-plan-label">Premium</span>
-            </div>
-            <ChevronDown size={14} className="user-dropdown-arrow" />
+
+            {showUserDropdown && (
+              <div className="user-dropdown-menu">
+                <div className="user-dropdown-header">
+                  <span className="dropdown-user-name">{currentUser}</span>
+                  <span className="dropdown-user-status">● Active Member</span>
+                </div>
+                <div className="dropdown-divider"></div>
+                <button
+                  type="button"
+                  className="user-dropdown-item logout"
+                  onClick={() => {
+                    setShowUserDropdown(false);
+                    setShowLogoutModal(true);
+                  }}
+                >
+                  <LogOut size={16} />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -806,6 +838,14 @@ function App() {
               <span>Chat History</span>
               <ChevronRight size={14} className="item-arrow" />
             </div>
+
+            {/* Clear Chat History Option in Side Menu Bar */}
+            <div className="nav-item clear-chat-nav-item" onClick={() => setShowClearModal(true)}>
+              <Trash2 size={16} />
+              <span>Clear Chat History</span>
+              <ChevronRight size={14} className="item-arrow" />
+            </div>
+
             <div className="nav-item">
               <BookOpen size={16} />
               <span>Journal</span>
@@ -825,7 +865,7 @@ function App() {
 
           {/* Logout Action at Bottom */}
           <div className="sidebar-bottom-action-container">
-            <button className="nav-item logout-btn" onClick={handleLogout}>
+            <button className="nav-item logout-btn" onClick={() => setShowLogoutModal(true)}>
               <LogOut size={16} />
               <span>Logout</span>
               <ChevronRight size={14} className="item-arrow" />
@@ -1103,6 +1143,68 @@ function App() {
             <button className="btn-glass-primary" onClick={() => setShowBreathingModal(false)}>
               Done / Close
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Chat History Warning Modal */}
+      {showClearModal && (
+        <div className="warning-modal-overlay" onClick={() => setShowClearModal(false)}>
+          <div className="warning-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="warning-icon-wrapper danger">
+              <AlertTriangle size={28} />
+            </div>
+            <h3>Clear Chat History?</h3>
+            <p className="modal-desc">
+              Are you sure you want to clear your chat history? This will permanently delete all messages from your database.
+            </p>
+            <div className="modal-actions-group">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setShowClearModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-modal-confirm danger"
+                onClick={confirmClearChat}
+              >
+                Yes, Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Warning Modal */}
+      {showLogoutModal && (
+        <div className="warning-modal-overlay" onClick={() => setShowLogoutModal(false)}>
+          <div className="warning-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="warning-icon-wrapper purple">
+              <LogOut size={28} />
+            </div>
+            <h3>Log Out of HEALIO?</h3>
+            <p className="modal-desc">
+              Are you sure you want to log out of your session? Your wellness data will remain securely saved.
+            </p>
+            <div className="modal-actions-group">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setShowLogoutModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-modal-confirm purple"
+                onClick={confirmLogout}
+              >
+                Yes, Log Out
+              </button>
+            </div>
           </div>
         </div>
       )}
