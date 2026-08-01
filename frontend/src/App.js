@@ -526,52 +526,50 @@ function App() {
     );
   }
 
-  // 2. Premium Glassmorphism Authentication Screen
+  // 2. Premium Zen Glassmorphism Authentication Screen (Reference Image Layout)
   if (!loggedIn) {
     return (
       <div className="login-screen-wrapper">
-        {/* Abstract Soft Organic Gradient Blobs Canvas Background */}
+        {/* Soft Organic Gradient Blobs Canvas Background */}
         <div className="login-bg-canvas">
           <div className="gradient-blob blob-bottom-left"></div>
           <div className="gradient-blob blob-top-right"></div>
           <div className="gradient-blob blob-center-soft"></div>
         </div>
 
-        {/* Floating Frosted Glass Login Card */}
-        <div className="login-glass-card">
-          {/* Header & Branding */}
-          <div className="glass-card-header">
-            <div className="healio-logo-badge">
-              <span className="logo-sparkle">✨</span>
-              <span className="logo-icon">😊</span>
+        {/* Reference Image Style Dark Glass Card */}
+        <div className="ref-login-glass-card">
+          {/* Zen Ring Icon Header */}
+          <div className="ref-card-header">
+            <div className="zen-ring-icon">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.5">
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="12" cy="12" r="8.5" strokeDasharray="3 3" />
+              </svg>
             </div>
-            <h1 className="healio-brand-title">HEALIO</h1>
-            <p className="healio-brand-subtitle">AI Mental Wellness Companion</p>
-
-            <div className="welcome-headline-box">
-              <h2>{authMode === 'login' ? 'Welcome Back' : 'Begin Your Journey'}</h2>
-              <p>
-                {authMode === 'login'
-                  ? 'Continue your wellness journey with your trusted AI companion.'
-                  : 'Create your private, confidential space for emotional wellbeing.'}
-              </p>
-            </div>
+            <h1 className="ref-card-title">
+              {authMode === 'login' ? 'Welcome back!' : 'Create account'}
+            </h1>
+            <p className="ref-card-subtitle">
+              {authMode === 'login'
+                ? 'Sign in to access your guided meditations, daily practices, and personal journey'
+                : 'Sign up to start your guided meditations, daily practices, and personal journey'}
+            </p>
           </div>
 
-          {/* Error / Success Notifications */}
-          {registerSuccess && <div className="glass-alert success">{registerSuccess}</div>}
-          {loginError && <div className="glass-alert error">{loginError}</div>}
+          {/* Alert messages */}
+          {registerSuccess && <div className="ref-glass-alert success">{registerSuccess}</div>}
+          {loginError && <div className="ref-glass-alert error">{loginError}</div>}
 
           {/* Form */}
           {authMode === 'login' ? (
-            <form onSubmit={handleLogin} className="glass-form">
-              <div className="glass-input-group">
+            <form onSubmit={handleLogin} className="ref-glass-form">
+              <div className="ref-input-group">
                 <label>Username</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">👤</span>
+                <div className="ref-input-wrapper">
                   <input
                     type="text"
-                    className="glass-input"
+                    className="ref-glass-input"
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -580,79 +578,97 @@ function App() {
                 </div>
               </div>
 
-              <div className="glass-input-group">
+              <div className="ref-input-group">
                 <label>Password</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
+                <div className="ref-input-wrapper">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    className="glass-input"
-                    placeholder="Enter your password"
+                    className="ref-glass-input"
+                    placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                   <button
                     type="button"
-                    className="btn-toggle-password"
+                    className="ref-btn-eye-toggle"
                     onClick={() => setShowPassword((prev) => !prev)}
                     title={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? '🙈' : '👁️'}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
                   </button>
                 </div>
               </div>
 
-              <div className="form-secondary-actions">
-                <label className="checkbox-container">
+              <div className="ref-actions-row">
+                <label className="ref-checkbox-label">
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
-                  <span className="custom-checkmark"></span>
-                  <span className="checkbox-label">Remember Me</span>
+                  <span className="ref-custom-box"></span>
+                  <span>Remember me</span>
                 </label>
                 <a
                   href="#forgot"
-                  className="forgot-link"
+                  className="ref-forgot-link"
                   onClick={(e) => {
                     e.preventDefault();
-                    alert('Demo Account Credentials:\nUsername: admin\nPassword: password');
+                    setUsername('admin');
+                    setPassword('password');
+                    alert('Filled demo credentials!\nUsername: admin\nPassword: password');
                   }}
                 >
-                  Forgot Password?
+                  Forgot password?
                 </a>
               </div>
 
-              <button type="submit" className="btn-glass-primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Signing In...' : 'Sign In'}
+              <button type="submit" className="ref-btn-solid-white" disabled={isSubmitting}>
+                {isSubmitting ? 'Logging In...' : 'Log In'}
               </button>
 
-              <div className="auth-toggle-footer">
+              <div className="ref-or-divider">
+                <span>Or</span>
+              </div>
+
+              <button
+                type="button"
+                className="ref-btn-outline-pill"
+                onClick={() => {
+                  setUsername('admin');
+                  setPassword('password');
+                }}
+              >
+                <span className="demo-icon">💡</span> Quick Fill Demo Account (admin / password)
+              </button>
+
+              <div className="ref-footer-text">
                 Don't have an account?{' '}
                 <button
                   type="button"
-                  className="auth-link-button"
+                  className="ref-footer-link"
                   onClick={() => {
                     setAuthMode('register');
                     setLoginError('');
                     setRegisterSuccess('');
                   }}
                 >
-                  Register
+                  Sign Up
                 </button>
               </div>
             </form>
           ) : (
-            <form onSubmit={handleRegister} className="glass-form">
-              <div className="glass-input-group">
+            <form onSubmit={handleRegister} className="ref-glass-form">
+              <div className="ref-input-group">
                 <label>Username</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">👤</span>
+                <div className="ref-input-wrapper">
                   <input
                     type="text"
-                    className="glass-input"
+                    className="ref-glass-input"
                     placeholder="Choose a username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
@@ -661,13 +677,12 @@ function App() {
                 </div>
               </div>
 
-              <div className="glass-input-group">
+              <div className="ref-input-group">
                 <label>Password</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
+                <div className="ref-input-wrapper">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    className="glass-input"
+                    className="ref-glass-input"
                     placeholder="Create a password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -675,22 +690,23 @@ function App() {
                   />
                   <button
                     type="button"
-                    className="btn-toggle-password"
+                    className="ref-btn-eye-toggle"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    title={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? '🙈' : '👁️'}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
                   </button>
                 </div>
               </div>
 
-              <div className="glass-input-group">
+              <div className="ref-input-group">
                 <label>Confirm Password</label>
-                <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
+                <div className="ref-input-wrapper">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    className="glass-input"
+                    className="ref-glass-input"
                     placeholder="Re-enter your password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -699,30 +715,26 @@ function App() {
                 </div>
               </div>
 
-              <button type="submit" className="btn-glass-primary" disabled={isSubmitting}>
-                {isSubmitting ? 'Creating Account...' : 'Create Account'}
+              <button type="submit" className="ref-btn-solid-white" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating Account...' : 'Sign Up'}
               </button>
 
-              <div className="auth-toggle-footer">
+              <div className="ref-footer-text">
                 Already have an account?{' '}
                 <button
                   type="button"
-                  className="auth-link-button"
+                  className="ref-footer-link"
                   onClick={() => {
                     setAuthMode('login');
                     setLoginError('');
                     setRegisterSuccess('');
                   }}
                 >
-                  Sign In
+                  Log In
                 </button>
               </div>
             </form>
           )}
-
-          <div className="demo-credentials-badge">
-            💡 Demo Account: <strong>admin</strong> / <strong>password</strong>
-          </div>
         </div>
       </div>
     );
