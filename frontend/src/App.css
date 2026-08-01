@@ -1637,8 +1637,36 @@ h1, h2, h3, h4, h5, h6 {
 /* ==========================================================================
    AUTHENTIC DARK GLASSMORPHISM DESIGN SYSTEM (VisionOS & Arc Inspired)
    ========================================================================== */
+/* Smooth Theme Transition Across Entire Platform */
+.app-platform-layout,
+.login-screen-wrapper,
+.header-modern-floating,
+.wellness-sidebar,
+.workspace-glass-card,
+.input-capsule-bar,
+.user-profile-badge,
+.user-dropdown-menu,
+.sidebar-interactive-card,
+.suggestion-pill-card,
+.session-card-item,
+.journal-entry-card,
+.tool-feature-card,
+.settings-group-card,
+.warning-modal-card,
+.journal-modal-card,
+.wellness-tool-modal-card,
+.btn-glass-back,
+.btn-glass-action,
+.glass-input,
+.glass-textarea {
+  transition: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+              color 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
 .theme-dark {
-  --bg-canvas: #090D16;
+  --bg-canvas: #070A12;
   --text-dark: #F8FAFC;
   --text-muted: #94A3B8;
   --text-dim: #64748B;
@@ -1655,6 +1683,73 @@ h1, h2, h3, h4, h5, h6 {
   --glass-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 
+/* 1. DARK THEME AUTHENTICATION / LOGIN SCREEN */
+.login-screen-wrapper.theme-dark {
+  background-color: #070A12 !important;
+}
+
+.login-screen-wrapper.theme-dark .login-bg-canvas .blob-bottom-left {
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.35) 0%, rgba(79, 70, 229, 0.2) 50%, transparent 100%) !important;
+  filter: blur(100px);
+}
+
+.login-screen-wrapper.theme-dark .login-bg-canvas .blob-top-right {
+  background: radial-gradient(circle at center, rgba(168, 85, 247, 0.3) 0%, rgba(192, 132, 252, 0.15) 50%, transparent 100%) !important;
+  filter: blur(100px);
+}
+
+.login-screen-wrapper.theme-dark .login-glass-card {
+  background: rgba(15, 23, 42, 0.78) !important;
+  backdrop-filter: blur(28px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5) !important;
+}
+
+.login-screen-wrapper.theme-dark .healio-brand-title,
+.login-screen-wrapper.theme-dark .welcome-headline-box h2,
+.login-screen-wrapper.theme-dark .glass-input-group label {
+  color: #F8FAFC !important;
+}
+
+.login-screen-wrapper.theme-dark .healio-brand-subtitle,
+.login-screen-wrapper.theme-dark .welcome-headline-box p,
+.login-screen-wrapper.theme-dark .checkbox-label,
+.login-screen-wrapper.theme-dark .auth-toggle-footer {
+  color: #94A3B8 !important;
+}
+
+.login-screen-wrapper.theme-dark .glass-input {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #F8FAFC !important;
+}
+
+.login-screen-wrapper.theme-dark .glass-input:focus {
+  border-color: #818CF8 !important;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.3) !important;
+}
+
+.login-screen-wrapper.theme-dark .demo-credentials-badge {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #A5B4FC !important;
+}
+
+.login-screen-wrapper.theme-dark .btn-glass-primary {
+  background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35) !important;
+}
+.login-screen-wrapper.theme-dark .btn-glass-primary:hover {
+  box-shadow: 0 12px 30px rgba(99, 102, 241, 0.5) !important;
+}
+
+/* 2. DARK THEME PLATFORM MAIN LAYOUT */
+.theme-dark.app-platform-layout {
+  background-color: #070A12 !important;
+}
+
 .theme-dark .platform-bg-canvas .blob-bottom-left {
   background: radial-gradient(circle at center, rgba(99, 102, 241, 0.35) 0%, rgba(79, 70, 229, 0.2) 50%, transparent 100%) !important;
   filter: blur(100px);
@@ -1665,16 +1760,8 @@ h1, h2, h3, h4, h5, h6 {
   filter: blur(100px);
 }
 
-.theme-dark .header-modern-floating,
-.theme-dark .wellness-sidebar,
-.theme-dark .workspace-glass-card,
-.theme-dark .input-capsule-bar,
-.theme-dark .warning-modal-card,
-.theme-dark .journal-modal-card,
-.theme-dark .wellness-tool-modal-card,
-.theme-dark .user-dropdown-menu,
-.theme-dark .paperclip-popup-menu,
-.theme-dark .msg-options-dropdown {
+/* Header */
+.theme-dark .header-modern-floating {
   background: rgba(15, 23, 42, 0.72) !important;
   backdrop-filter: blur(28px) saturate(200%) !important;
   -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
@@ -1683,43 +1770,247 @@ h1, h2, h3, h4, h5, h6 {
   color: #F8FAFC !important;
 }
 
-.theme-dark .sidebar-interactive-card,
+.theme-dark .brand-title-text { color: #F8FAFC !important; }
+.theme-dark .brand-subtitle-text { color: #94A3B8 !important; }
+
+.theme-dark .glass-icon-btn,
+.theme-dark .sidebar-toggle-btn {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #F8FAFC !important;
+}
+
+.theme-dark .glass-icon-btn:hover,
+.theme-dark .sidebar-toggle-btn:hover {
+  background: rgba(45, 59, 82, 0.9) !important;
+  color: #818CF8 !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+}
+
+/* Profile Badge & Dropdown */
+.theme-dark .user-profile-badge {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+.theme-dark .user-profile-badge:hover {
+  background: rgba(45, 59, 82, 0.9) !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+}
+.theme-dark .user-name-label { color: #F8FAFC !important; }
+.theme-dark .user-plan-label { color: #A5B4FC !important; }
+.theme-dark .user-avatar-circle {
+  background: linear-gradient(135deg, #6366F1 0%, #818CF8 100%) !important;
+  color: #FFFFFF !important;
+}
+
+.theme-dark .user-dropdown-menu {
+  background: rgba(15, 23, 42, 0.92) !important;
+  backdrop-filter: blur(28px) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+}
+.theme-dark .dropdown-user-name { color: #F8FAFC !important; }
+.theme-dark .dropdown-user-status { color: #34D399 !important; }
+.theme-dark .user-dropdown-item { color: #F8FAFC !important; }
+.theme-dark .user-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #818CF8 !important;
+}
+
+/* Sidebar */
+.theme-dark .wellness-sidebar {
+  background: rgba(15, 23, 42, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
 .theme-dark .sidebar-box,
-.theme-dark .suggestion-pill-card,
+.theme-dark .sidebar-interactive-card {
+  background: rgba(30, 41, 59, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+.theme-dark .sidebar-interactive-card:hover {
+  background: rgba(30, 41, 59, 0.95) !important;
+  border-color: rgba(165, 180, 252, 0.4) !important;
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2) !important;
+}
+.theme-dark .sidebar-interactive-card h5,
+.theme-dark .card-main-title { color: #F8FAFC !important; }
+.theme-dark .sidebar-interactive-card p,
+.theme-dark .quote-text-body,
+.theme-dark .card-timestamp { color: #94A3B8 !important; }
+
+.theme-dark .nav-item { color: #94A3B8 !important; }
+.theme-dark .nav-item:hover,
+.theme-dark .nav-item.active {
+  background: rgba(129, 140, 248, 0.15) !important;
+  color: #A5B4FC !important;
+}
+
+/* Workspace Card & Content */
+.theme-dark .workspace-glass-card {
+  background: rgba(15, 23, 42, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.4) !important;
+}
+
+.theme-dark .chat-welcome-banner h2 { color: #F8FAFC !important; }
+.theme-dark .chat-welcome-banner h3 { color: #E2E8F0 !important; }
+.theme-dark .chat-welcome-banner p { color: #94A3B8 !important; }
+
+/* Suggestion Cards */
+.theme-dark .suggestion-pill-card {
+  background: rgba(30, 41, 59, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+.theme-dark .suggestion-pill-card:hover {
+  background: rgba(30, 41, 59, 0.95) !important;
+  border-color: rgba(165, 180, 252, 0.4) !important;
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2) !important;
+}
+.theme-dark .pill-title { color: #F8FAFC !important; }
+.theme-dark .pill-desc { color: #94A3B8 !important; }
+
+/* Chat Bubbles */
+.theme-dark .bubble-bot {
+  background: rgba(30, 41, 59, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #F8FAFC !important;
+}
+.theme-dark .bubble-user {
+  background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3) !important;
+}
+
+/* Input Capsule Bar */
+.theme-dark .input-capsule-bar {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4) !important;
+}
+.theme-dark .textarea-auto-expand {
+  color: #F8FAFC !important;
+}
+.theme-dark .textarea-auto-expand::placeholder {
+  color: #64748B !important;
+}
+.theme-dark .btn-paperclip,
+.theme-dark .btn-media-icon {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #94A3B8 !important;
+}
+.theme-dark .btn-paperclip:hover,
+.theme-dark .btn-media-icon:hover {
+  background: rgba(45, 59, 82, 0.9) !important;
+  color: #818CF8 !important;
+}
+
+/* Modules: History, Journal, Tools, Settings */
+.theme-dark .module-title-group h2 { color: #F8FAFC !important; }
+.theme-dark .module-title-group p { color: #94A3B8 !important; }
+
+.theme-dark .btn-glass-back,
+.theme-dark .btn-glass-action {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #F8FAFC !important;
+}
+.theme-dark .btn-glass-back:hover,
+.theme-dark .btn-glass-action:hover {
+  background: rgba(45, 59, 82, 0.9) !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+  color: #818CF8 !important;
+}
+
+.theme-dark .module-search-box input {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #F8FAFC !important;
+}
+
 .theme-dark .session-card-item,
 .theme-dark .journal-entry-card,
 .theme-dark .tool-feature-card,
-.theme-dark .settings-group-card,
-.theme-dark .btn-glass-back,
-.theme-dark .btn-glass-action {
+.theme-dark .settings-group-card {
   background: rgba(30, 41, 59, 0.6) !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   color: #F8FAFC !important;
 }
 
-.theme-dark .sidebar-interactive-card:hover,
-.theme-dark .suggestion-pill-card:hover,
 .theme-dark .session-card-item:hover,
-.theme-dark .tool-feature-card:hover,
-.theme-dark .btn-glass-back:hover,
-.theme-dark .btn-glass-action:hover {
-  background: rgba(30, 41, 59, 0.9) !important;
+.theme-dark .journal-entry-card:hover,
+.theme-dark .tool-feature-card:hover {
+  background: rgba(30, 41, 59, 0.95) !important;
   border-color: rgba(165, 180, 252, 0.4) !important;
   box-shadow: 0 8px 25px rgba(99, 102, 241, 0.2) !important;
 }
 
-.theme-dark .glass-input,
-.theme-dark .glass-textarea,
-.theme-dark .module-search-box input {
-  background: rgba(15, 23, 42, 0.8) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
+.theme-dark .session-title,
+.theme-dark .journal-card-header h3,
+.theme-dark .tool-feature-card h3,
+.theme-dark .settings-group-card h3,
+.theme-dark .setting-control-row label {
   color: #F8FAFC !important;
 }
 
-.theme-dark .bubble-bot {
-  background: rgba(30, 41, 59, 0.85) !important;
+.theme-dark .session-preview,
+.theme-dark .journal-content-body,
+.theme-dark .tool-feature-card p {
+  color: #CBD5E1 !important;
+}
+
+.theme-dark .pill-option {
+  background: rgba(30, 41, 59, 0.8) !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
   color: #F8FAFC !important;
+}
+.theme-dark .pill-option:hover,
+.theme-dark .pill-option.active {
+  background: #6366F1 !important;
+  border-color: #6366F1 !important;
+  color: #FFFFFF !important;
+}
+
+/* Modals */
+.theme-dark .warning-modal-card,
+.theme-dark .journal-modal-card,
+.theme-dark .wellness-tool-modal-card {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #F8FAFC !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6) !important;
+}
+.theme-dark .warning-modal-card h3,
+.theme-dark .journal-modal-card h3,
+.theme-dark .wellness-tool-modal-card h3 {
+  color: #F8FAFC !important;
+}
+.theme-dark .modal-desc { color: #94A3B8 !important; }
+
+.theme-dark .glass-input,
+.theme-dark .glass-textarea {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #F8FAFC !important;
+}
+
+.theme-dark .mood-select-btn,
+.theme-dark .sound-play-btn {
+  background: rgba(30, 41, 59, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #F8FAFC !important;
+}
+.theme-dark .mood-select-btn:hover,
+.theme-dark .sound-play-btn:hover,
+.theme-dark .sound-play-btn.active {
+  background: #6366F1 !important;
+  border-color: #6366F1 !important;
+  color: #FFFFFF !important;
 }
 
 .font-small { font-size: 13px; }

@@ -224,13 +224,16 @@ function App() {
   const [groundingInputs, setGroundingInputs] = useState({ 5: '', 4: '', 3: '', 2: '', 1: '' });
 
   // Settings Module States
-  const [userSettings, setUserSettings] = useState({
-    theme: 'light',
-    font_size: 'medium',
-    ai_tone: 'Supportive',
-    daily_reminder: 0,
-    mood_reminder: 0,
-    journal_reminder: 0
+  const [userSettings, setUserSettings] = useState(() => {
+    const savedTheme = localStorage.getItem('healio_theme') || 'light';
+    return {
+      theme: savedTheme,
+      font_size: 'medium',
+      ai_tone: 'Supportive',
+      daily_reminder: 0,
+      mood_reminder: 0,
+      journal_reminder: 0
+    };
   });
   const [settingsSavedMessage, setSettingsSavedMessage] = useState('');
 
@@ -476,6 +479,9 @@ function App() {
       const data = await res.json();
       if (res.ok && data.settings) {
         setUserSettings(data.settings);
+        if (data.settings.theme) {
+          localStorage.setItem('healio_theme', data.settings.theme);
+        }
       }
     } catch (err) {
       console.error('Error fetching settings:', err);
@@ -485,6 +491,9 @@ function App() {
   const handleSaveSettings = async (newSettings) => {
     const updated = { ...userSettings, ...newSettings };
     setUserSettings(updated);
+    if (newSettings.theme) {
+      localStorage.setItem('healio_theme', newSettings.theme);
+    }
     try {
       const formData = new FormData();
       formData.append('username', currentUser);
@@ -810,7 +819,7 @@ function App() {
   // 2. Premium Glassmorphism Authentication Screen
   if (!loggedIn) {
     return (
-      <div className="login-screen-wrapper">
+      <div className={`login-screen-wrapper theme-${userSettings.theme}`}>
         <div className="login-bg-canvas">
           <div className="gradient-blob blob-bottom-left"></div>
           <div className="gradient-blob blob-top-right"></div>
