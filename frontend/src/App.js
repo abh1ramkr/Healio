@@ -131,42 +131,6 @@ class AmbientAudioSynth {
 
 const ambientSynth = new AmbientAudioSynth();
 
-// Typewriter component for animated typing effect on new AI responses
-function TypewriterText({ text, speed = 12 }) {
-  const [displayedText, setDisplayedText] = useState('');
-  const [isTyping, setIsTyping] = useState(true);
-
-  useEffect(() => {
-    let index = 0;
-    setIsTyping(true);
-    setDisplayedText('');
-
-    if (!text) {
-      setIsTyping(false);
-      return;
-    }
-
-    const interval = setInterval(() => {
-      if (index < text.length) {
-        setDisplayedText((prev) => text.slice(0, index + 1));
-        index++;
-      } else {
-        setIsTyping(false);
-        clearInterval(interval);
-      }
-    }, speed);
-
-    return () => clearInterval(interval);
-  }, [text, speed]);
-
-  return (
-    <span>
-      {displayedText}
-      {isTyping && <span className="typing-cursor">|</span>}
-    </span>
-  );
-}
-
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
