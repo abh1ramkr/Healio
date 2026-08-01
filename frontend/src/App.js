@@ -4,7 +4,8 @@ import {
   Menu, Sparkles, Search, Bell, ChevronRight, ChevronDown, 
   Wind, Quote, Heart, Paperclip, Image, Mic, Send, 
   Trash2, Volume2, CheckSquare, LogOut, MoreVertical,
-  Sun, Moon, Smile, MessageCircle, User, BookOpen, Wrench, Settings, AlertTriangle
+  Sun, Moon, Smile, MessageCircle, User, BookOpen, Wrench, Settings, AlertTriangle,
+  Edit3, Plus, Calendar, Play, Square, Download, RefreshCw, Check, VolumeX
 } from 'lucide-react';
 
 // Dynamic Time-based Greeting Helper
@@ -45,6 +46,90 @@ function mapEmotionToMoodLabel(emotionsText) {
   }
   return 'Thoughtful';
 }
+
+// Web Audio Ambient Synthesizer for Relaxation Sounds (Zero external dependencies)
+class AmbientAudioSynth {
+  constructor() {
+    this.ctx = null;
+    this.whiteNoise = null;
+    this.filter = null;
+    this.gainNode = null;
+    this.isPlaying = false;
+    this.currentSound = null;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  play(soundType) {
+    try {
+      this.init();
+      this.stop();
+
+      const bufferSize = 2 * this.ctx.sampleRate;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+
+      this.whiteNoise = this.ctx.createBufferSource();
+      this.whiteNoise.buffer = noiseBuffer;
+      this.whiteNoise.loop = true;
+
+      this.filter = this.ctx.createBiquadFilter();
+
+      if (soundType === 'rain') {
+        this.filter.type = 'lowpass';
+        this.filter.frequency.setValueAtTime(1000, this.ctx.currentTime);
+      } else if (soundType === 'ocean') {
+        this.filter.type = 'bandpass';
+        this.filter.frequency.setValueAtTime(400, this.ctx.currentTime);
+        this.filter.Q.setValueAtTime(1.0, this.ctx.currentTime);
+      } else if (soundType === 'forest') {
+        this.filter.type = 'highpass';
+        this.filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+      } else {
+        // White Noise
+        this.filter.type = 'lowpass';
+        this.filter.frequency.setValueAtTime(2500, this.ctx.currentTime);
+      }
+
+      this.gainNode = this.ctx.createGain();
+      this.gainNode.gain.setValueAtTime(0.12, this.ctx.currentTime);
+
+      this.whiteNoise.connect(this.filter);
+      this.filter.connect(this.gainNode);
+      this.gainNode.connect(this.ctx.destination);
+
+      this.whiteNoise.start();
+      this.isPlaying = true;
+      this.currentSound = soundType;
+    } catch (e) {
+      console.error('Audio synth error:', e);
+    }
+  }
+
+  stop() {
+    if (this.whiteNoise) {
+      try { this.whiteNoise.stop(); } catch (e) {}
+      try { this.whiteNoise.disconnect(); } catch (e) {}
+      this.whiteNoise = null;
+    }
+    this.isPlaying = false;
+    this.currentSound = null;
+  }
+}
+
+const ambientSynth = new AmbientAudioSynth();
 
 // Typewriter component for animated typing effect on new AI responses
 function TypewriterText({ text, speed = 12 }) {
@@ -96,24 +181,59 @@ function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  // Platform UI States
+  // Active Core Module State: null (Chat) | 'chat_history' | 'journal' | 'wellness_tools' | 'settings'
+  const [activeModule, setActiveModule] = useState(null);
+
+  // Platform UI & Sidebar States
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedMoodEmoji, setSelectedMoodEmoji] = useState('😌');
   const [detectedEmotionLabel, setDetectedEmotionLabel] = useState('Calm');
   const [dailyAffirmation] = useState(() => AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)]);
-  const [showBreathingModal, setShowBreathingModal] = useState(false);
-  const [breathingText, setBreathingText] = useState('Inhale slowly...');
 
-  // Modal & Dropdown Confirmation States
+  // Modal & Warning States
   const [showClearModal, setShowClearModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
-  // Chat & Message States
+  // Chat & Session States
   const [messages, setMessages] = useState([]);
   const [textInput, setTextInput] = useState('');
-  const [audioFile, setAudioFile] = useState(null);
-  const [videoFile, setVideoFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionsList, setSessionsList] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [sessionSearchQuery, setSessionSearchQuery] = useState('');
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [editingTitleText, setEditingTitleText] = useState('');
+
+  // Journal Module States
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [journalSearchQuery, setJournalSearchQuery] = useState('');
+  const [showJournalFormModal, setShowJournalFormModal] = useState(false);
+  const [journalForm, setJournalForm] = useState({ id: null, title: '', content: '', mood: '😌 Calm' });
+  const [journalReflections, setJournalReflections] = useState({}); // { entryId: reflectionText }
+  const [isReflectingId, setIsReflectingId] = useState(null);
+
+  // Wellness Tools Module States
+  const [activeWellnessTool, setActiveWellnessTool] = useState(null); // 'breathing' | 'grounding' | 'mood_checkin' | 'daily_tip' | 'relaxation_sounds'
+  const [breathingDuration, setBreathingDuration] = useState(2); // 2, 5, 10 minutes
+  const [breathingText, setBreathingText] = useState('Inhale slowly (4s)...');
+  const [activeSound, setActiveSound] = useState(null);
+  const [dailyTip, setDailyTip] = useState("Take a five-minute walk without your phone today to refresh your mind.");
+  
+  // 5-4-3-2-1 Grounding Exercise State
+  const [groundingStep, setGroundingStep] = useState(0);
+  const [groundingInputs, setGroundingInputs] = useState({ 5: '', 4: '', 3: '', 2: '', 1: '' });
+
+  // Settings Module States
+  const [userSettings, setUserSettings] = useState({
+    theme: 'light',
+    font_size: 'medium',
+    ai_tone: 'Supportive',
+    daily_reminder: 0,
+    mood_reminder: 0,
+    journal_reminder: 0
+  });
+  const [settingsSavedMessage, setSettingsSavedMessage] = useState('');
 
   // Attachment Popup & Recording States
   const [showUploadPopup, setShowUploadPopup] = useState(false);
@@ -124,7 +244,7 @@ function App() {
   const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
 
-  // Refs for media elements
+  // Media Refs
   const textareaRef = useRef(null);
   const audioInputRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -154,10 +274,10 @@ function App() {
     return () => document.removeEventListener('click', handleOutsideClick);
   }, []);
 
-  // Guided breathing exercise timer loop
+  // Guided Breathing Animation Timer Loop
   useEffect(() => {
     let breathingInterval;
-    if (showBreathingModal) {
+    if (activeWellnessTool === 'breathing') {
       let step = 0;
       setBreathingText('Inhale slowly (4s)...');
       breathingInterval = setInterval(() => {
@@ -168,56 +288,261 @@ function App() {
       }, 4000);
     }
     return () => clearInterval(breathingInterval);
-  }, [showBreathingModal]);
+  }, [activeWellnessTool]);
 
-  // Auto-fetch user chat history from database
-  const fetchHistory = async (userToFetch) => {
-    if (!userToFetch) return;
+  // Fetch all user persistent data on login
+  useEffect(() => {
+    if (loggedIn && currentUser) {
+      fetchUserSessions(currentUser);
+      fetchUserJournal(currentUser);
+      fetchUserSettings(currentUser);
+      fetchLatestMood(currentUser);
+      fetchDailyTip();
+    }
+  }, [loggedIn, currentUser]);
+
+  // --- API DATA FETCHING & PERSISTENCE HELPERS ---
+  const fetchUserSessions = async (user) => {
     try {
-      const res = await fetch(`/history?username=${encodeURIComponent(userToFetch)}`);
+      const res = await fetch(`/sessions?username=${encodeURIComponent(user)}`);
       const data = await res.json();
-      if (res.ok && data.history && Array.isArray(data.history)) {
-        const formattedMsgs = [];
-        data.history.forEach((turn, idx) => {
-          const uText = turn[0];
-          const eText = turn[1];
-          const bText = turn[2];
-          const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-          if (uText) {
-            formattedMsgs.push({
-              id: `hist_u_${idx}`,
-              type: 'user',
-              text: uText,
-              timestamp: nowStr,
-              isNew: false
-            });
-          }
-          if (bText) {
-            formattedMsgs.push({
-              id: `hist_b_${idx}`,
-              type: 'bot',
-              text: bText,
-              emotions: eText,
-              timestamp: nowStr,
-              turnIndex: idx,
-              isNew: false
-            });
-          }
-        });
-        setMessages(formattedMsgs);
-        if (data.history.length > 0) {
-          const lastTurn = data.history[data.history.length - 1];
-          if (lastTurn[1]) {
-            setDetectedEmotionLabel(mapEmotionToMoodLabel(lastTurn[1]));
-          }
-        }
+      if (res.ok && data.sessions) {
+        setSessionsList(data.sessions);
       }
-    } catch (error) {
-      console.error('Error loading history:', error);
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
     }
   };
 
+  const loadSessionMessages = async (sessionId) => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/session_messages?session_id=${encodeURIComponent(sessionId)}&username=${encodeURIComponent(currentUser)}`);
+      const data = await res.json();
+      if (res.ok && data.messages) {
+        setMessages(data.messages);
+        setActiveSessionId(sessionId);
+        setActiveModule(null); // Return to main chat workspace
+      }
+    } catch (err) {
+      console.error('Error loading session messages:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStartNewChat = () => {
+    setActiveSessionId(null);
+    setMessages([]);
+    setActiveModule(null);
+  };
+
+  const handleRenameSession = async (sessionId) => {
+    if (!editingTitleText.trim()) return;
+    try {
+      const formData = new FormData();
+      formData.append('session_id', sessionId);
+      formData.append('title', editingTitleText.trim());
+      await fetch('/rename_session', { method: 'POST', body: formData });
+      setEditingSessionId(null);
+      fetchUserSessions(currentUser);
+    } catch (err) {
+      console.error('Error renaming session:', err);
+    }
+  };
+
+  const handleDeleteSession = async (sessionId) => {
+    try {
+      const formData = new FormData();
+      formData.append('session_id', sessionId);
+      formData.append('username', currentUser);
+      await fetch('/delete_session', { method: 'POST', body: formData });
+      if (activeSessionId === sessionId) {
+        handleStartNewChat();
+      }
+      fetchUserSessions(currentUser);
+    } catch (err) {
+      console.error('Error deleting session:', err);
+    }
+  };
+
+  const fetchUserJournal = async (user) => {
+    try {
+      const res = await fetch(`/journal/list?username=${encodeURIComponent(user)}`);
+      const data = await res.json();
+      if (res.ok && data.entries) {
+        setJournalEntries(data.entries);
+      }
+    } catch (err) {
+      console.error('Error fetching journal:', err);
+    }
+  };
+
+  const handleSaveJournalEntry = async (e) => {
+    e.preventDefault();
+    if (!journalForm.title.trim() || !journalForm.content.trim()) return;
+
+    const formData = new FormData();
+    formData.append('username', currentUser);
+    formData.append('title', journalForm.title.trim());
+    formData.append('content', journalForm.content.trim());
+    if (journalForm.mood) formData.append('mood', journalForm.mood);
+
+    try {
+      if (journalForm.id) {
+        formData.append('id', journalForm.id);
+        await fetch('/journal/update', { method: 'POST', body: formData });
+      } else {
+        await fetch('/journal/create', { method: 'POST', body: formData });
+      }
+      setShowJournalFormModal(false);
+      setJournalForm({ id: null, title: '', content: '', mood: '😌 Calm' });
+      fetchUserJournal(currentUser);
+    } catch (err) {
+      console.error('Error saving journal:', err);
+    }
+  };
+
+  const handleDeleteJournalEntry = async (entryId) => {
+    try {
+      const formData = new FormData();
+      formData.append('id', entryId);
+      formData.append('username', currentUser);
+      await fetch('/journal/delete', { method: 'POST', body: formData });
+      fetchUserJournal(currentUser);
+    } catch (err) {
+      console.error('Error deleting journal entry:', err);
+    }
+  };
+
+  const handleReflectJournalEntry = async (entry) => {
+    setIsReflectingId(entry.id);
+    try {
+      const formData = new FormData();
+      formData.append('content', entry.content);
+      if (entry.mood) formData.append('mood', entry.mood);
+      const res = await fetch('/journal/reflect', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok && data.reflection) {
+        setJournalReflections((prev) => ({ ...prev, [entry.id]: data.reflection }));
+      }
+    } catch (err) {
+      console.error('Error getting reflection:', err);
+    } finally {
+      setIsReflectingId(null);
+    }
+  };
+
+  const fetchLatestMood = async (user) => {
+    try {
+      const res = await fetch(`/latest_mood?username=${encodeURIComponent(user)}`);
+      const data = await res.json();
+      if (res.ok && data.log) {
+        setSelectedMoodEmoji(data.log.mood_emoji);
+        setDetectedEmotionLabel(data.log.mood_label);
+      }
+    } catch (err) {
+      console.error('Error fetching mood:', err);
+    }
+  };
+
+  const handleMoodCheckin = async (emoji, label) => {
+    setSelectedMoodEmoji(emoji);
+    setDetectedEmotionLabel(label);
+    try {
+      const formData = new FormData();
+      formData.append('username', currentUser);
+      formData.append('mood_emoji', emoji);
+      formData.append('mood_label', label);
+      await fetch('/mood_checkin', { method: 'POST', body: formData });
+      setActiveWellnessTool(null);
+    } catch (err) {
+      console.error('Error logging mood checkin:', err);
+    }
+  };
+
+  const fetchDailyTip = async () => {
+    try {
+      const res = await fetch('/daily_tip');
+      const data = await res.json();
+      if (res.ok && data.tip) {
+        setDailyTip(data.tip);
+      }
+    } catch (err) {
+      console.error('Error fetching daily tip:', err);
+    }
+  };
+
+  const fetchUserSettings = async (user) => {
+    try {
+      const res = await fetch(`/settings?username=${encodeURIComponent(user)}`);
+      const data = await res.json();
+      if (res.ok && data.settings) {
+        setUserSettings(data.settings);
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+    }
+  };
+
+  const handleSaveSettings = async (newSettings) => {
+    const updated = { ...userSettings, ...newSettings };
+    setUserSettings(updated);
+    try {
+      const formData = new FormData();
+      formData.append('username', currentUser);
+      formData.append('theme', updated.theme);
+      formData.append('font_size', updated.font_size);
+      formData.append('ai_tone', updated.ai_tone);
+      formData.append('daily_reminder', updated.daily_reminder ? 1 : 0);
+      formData.append('mood_reminder', updated.mood_reminder ? 1 : 0);
+      formData.append('journal_reminder', updated.journal_reminder ? 1 : 0);
+
+      await fetch('/settings/update', { method: 'POST', body: formData });
+      setSettingsSavedMessage('Settings saved successfully!');
+      setTimeout(() => setSettingsSavedMessage(''), 2500);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('username', currentUser);
+      const res = await fetch('/export_data', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok && data.data) {
+        const jsonStr = JSON.stringify(data.data, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `HEALIO_Backup_${currentUser}_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Error exporting data:', err);
+    }
+  };
+
+  const handleClearAllData = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('username', currentUser);
+      await fetch('/delete_all_data', { method: 'POST', body: formData });
+      setMessages([]);
+      setJournalEntries([]);
+      setSessionsList([]);
+      setShowClearModal(false);
+      alert('All your application data has been cleared.');
+    } catch (err) {
+      console.error('Error clearing all data:', err);
+    }
+  };
+
+  // Auth Submit Handlers
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
@@ -239,7 +564,6 @@ function App() {
         const activeUser = data.username || username.trim();
         setCurrentUser(activeUser);
         setLoggedIn(true);
-        fetchHistory(activeUser);
       } else {
         setLoginError(data.detail || 'Invalid username or password.');
       }
@@ -296,6 +620,7 @@ function App() {
     setConfirmPassword('');
     setLoginError('');
     setRegisterSuccess('');
+    setActiveModule(null);
   };
 
   const confirmClearChat = async () => {
@@ -311,6 +636,7 @@ function App() {
     setMessages([]);
     setSelectedMsgIds(new Set());
     setIsSelectMode(false);
+    fetchUserSessions(currentUser);
   };
 
   // Optimistically displays user message FIRST, then calls backend
@@ -319,25 +645,30 @@ function App() {
     const userMsgId = `user_${Date.now()}_${Math.random()}`;
     const userMsg = { id: userMsgId, type: 'user', text: userText, timestamp: timeStr, isNew: false };
 
-    // 1. Optimistic Update: Append user message IMMEDIATELY to UI
+    // 1. Append user message IMMEDIATELY to UI
     setMessages((prev) => [...prev, userMsg]);
     setTextInput('');
-    setAudioFile(null);
-    setVideoFile(null);
     setIsLoading(true);
 
     formData.append('username', currentUser || 'default');
+    if (activeSessionId) {
+      formData.append('session_id', activeSessionId);
+    }
 
     try {
       const res = await fetch(endpoint, { method: 'POST', body: formData });
       const data = await res.json();
       
-      // 2. Auto-detect emotion and update current mood in sidebar automatically
+      if (data.session_id && data.session_id !== activeSessionId) {
+        setActiveSessionId(data.session_id);
+      }
+
+      // Auto-detect emotion and update current mood in sidebar
       if (data.emotions) {
         setDetectedEmotionLabel(mapEmotionToMoodLabel(data.emotions));
       }
 
-      // 3. Append Bot Message
+      // Append Bot Message
       const botMsgId = `bot_${Date.now()}_${Math.random()}`;
       const botMsg = {
         id: botMsgId,
@@ -346,10 +677,11 @@ function App() {
         emotions: data.emotions,
         timestamp: timeStr,
         audio: data.audio_base64 ? `data:audio/mp3;base64,${data.audio_base64}` : null,
-        isNew: true, // triggers typewriter text animation
+        isNew: true,
       };
 
       setMessages((prev) => [...prev, botMsg]);
+      fetchUserSessions(currentUser);
     } catch (error) {
       console.error('API Error:', error);
       setMessages((prev) => [
@@ -387,7 +719,6 @@ function App() {
     setShowUploadPopup(false);
   };
 
-  // Audio Recording (Microphone)
   const startAudioRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -417,7 +748,6 @@ function App() {
     }
   };
 
-  // --- Message Action Handlers (Read Aloud, Delete, Select) ---
   const handleReadAloud = (msg) => {
     setOpenDropdownId(null);
     if (msg.audio) {
@@ -488,16 +818,13 @@ function App() {
   if (!loggedIn) {
     return (
       <div className="login-screen-wrapper">
-        {/* Abstract Soft Organic Gradient Blobs Canvas Background */}
         <div className="login-bg-canvas">
           <div className="gradient-blob blob-bottom-left"></div>
           <div className="gradient-blob blob-top-right"></div>
           <div className="gradient-blob blob-center-soft"></div>
         </div>
 
-        {/* Floating Frosted Glass Login Card */}
         <div className="login-glass-card">
-          {/* Header & Branding */}
           <div className="glass-card-header">
             <div className="healio-logo-badge">
               <Sparkles size={26} color="#6C63FF" />
@@ -515,11 +842,9 @@ function App() {
             </div>
           </div>
 
-          {/* Error / Success Notifications */}
           {registerSuccess && <div className="glass-alert success">{registerSuccess}</div>}
           {loginError && <div className="glass-alert error">{loginError}</div>}
 
-          {/* Form */}
           {authMode === 'login' ? (
             <form onSubmit={handleLogin} className="glass-form">
               <div className="glass-input-group">
@@ -553,7 +878,6 @@ function App() {
                     type="button"
                     className="btn-toggle-password"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    title={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? '🙈' : '👁️'}
                   </button>
@@ -634,7 +958,6 @@ function App() {
                     type="button"
                     className="btn-toggle-password"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    title={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? '🙈' : '👁️'}
                   </button>
@@ -685,10 +1008,9 @@ function App() {
     );
   }
 
-  // 3. Main Mental Wellness Platform Interface (Refined Premium Design System)
+  // 3. Main Mental Wellness Platform Interface
   return (
-    <div className="app-platform-layout">
-      {/* Hidden File Inputs for Audio/Video Upload */}
+    <div className={`app-platform-layout theme-${userSettings.theme} font-${userSettings.font_size}`}>
       <input
         type="file"
         ref={audioInputRef}
@@ -704,7 +1026,6 @@ function App() {
         onChange={handleVideoUpload}
       />
 
-      {/* Abstract Soft Organic Canvas Background */}
       <div className="platform-bg-canvas">
         <div className="gradient-blob blob-bottom-left"></div>
         <div className="gradient-blob blob-top-right"></div>
@@ -721,21 +1042,21 @@ function App() {
           >
             <Menu size={18} />
           </button>
-          <div className="brand-logo-icon">
+          <div className="brand-logo-icon" onClick={() => setActiveModule(null)} style={{ cursor: 'pointer' }}>
             <Sparkles size={20} className="sparkle-svg-icon" />
           </div>
-          <div className="brand-text-container">
+          <div className="brand-text-container" onClick={() => setActiveModule(null)} style={{ cursor: 'pointer' }}>
             <span className="brand-title-text">HEALIO</span>
             <span className="brand-subtitle-text">AI Mental Wellness Companion</span>
           </div>
         </div>
 
         <div className="header-user-actions">
-          <button className="glass-icon-btn" title="Search">
+          <button className="glass-icon-btn" title="Search" onClick={() => setActiveModule('chat_history')}>
             <Search size={16} />
           </button>
 
-          <button className="glass-icon-btn" title="Notifications">
+          <button className="glass-icon-btn" title="Notifications" onClick={() => setActiveModule('settings')}>
             <Bell size={16} />
           </button>
 
@@ -763,13 +1084,24 @@ function App() {
                 <div className="dropdown-divider"></div>
                 <button
                   type="button"
+                  className="user-dropdown-item"
+                  onClick={() => {
+                    setShowUserDropdown(false);
+                    setActiveModule('settings');
+                  }}
+                >
+                  <Settings size={15} />
+                  <span>Settings</span>
+                </button>
+                <button
+                  type="button"
                   className="user-dropdown-item logout"
                   onClick={() => {
                     setShowUserDropdown(false);
                     setShowLogoutModal(true);
                   }}
                 >
-                  <LogOut size={16} />
+                  <LogOut size={15} />
                   <span>Log Out</span>
                 </button>
               </div>
@@ -791,13 +1123,13 @@ function App() {
             </div>
             <div className="mood-card-info">
               <span className="card-mini-label">Current Mood</span>
-              <strong className="card-main-title">{detectedEmotionLabel || 'Calm'}</strong>
+              <strong className="card-main-title">{selectedMoodEmoji} {detectedEmotionLabel || 'Calm'}</strong>
               <span className="card-timestamp">Last updated • Just now</span>
             </div>
           </div>
 
-          {/* Guided Breathing Tool Launcher */}
-          <div className="sidebar-interactive-card" onClick={() => setShowBreathingModal(true)}>
+          {/* Guided Breathing Launcher */}
+          <div className="sidebar-interactive-card" onClick={() => { setActiveModule('wellness_tools'); setActiveWellnessTool('breathing'); }}>
             <div className="card-icon-circle green">
               <Wind size={18} />
             </div>
@@ -826,44 +1158,56 @@ function App() {
             </div>
             <div className="card-text-body">
               <h5>Immediate Support</h5>
-              <p>If you are in crisis, call 988 (Lifeline) or reach out to a professional.</p>
+              <p>If in crisis, call <strong>988</strong> (Lifeline) or reach a counselor.</p>
             </div>
             <ChevronRight size={16} className="card-arrow" />
           </div>
 
-          {/* Navigation Items */}
+          {/* Navigation Items (4 Core Modules) */}
           <div className="sidebar-nav-group">
-            <div className="nav-item">
+            <div
+              className={`nav-item ${activeModule === 'chat_history' ? 'active' : ''}`}
+              onClick={() => setActiveModule('chat_history')}
+            >
               <MessageCircle size={16} />
               <span>Chat History</span>
               <ChevronRight size={14} className="item-arrow" />
             </div>
 
-            {/* Clear Chat History Option in Side Menu Bar */}
+            <div
+              className={`nav-item ${activeModule === 'journal' ? 'active' : ''}`}
+              onClick={() => setActiveModule('journal')}
+            >
+              <BookOpen size={16} />
+              <span>Journal</span>
+              <ChevronRight size={14} className="item-arrow" />
+            </div>
+
+            <div
+              className={`nav-item ${activeModule === 'wellness_tools' ? 'active' : ''}`}
+              onClick={() => setActiveModule('wellness_tools')}
+            >
+              <Wrench size={16} />
+              <span>Wellness Tools</span>
+              <ChevronRight size={14} className="item-arrow" />
+            </div>
+
+            <div
+              className={`nav-item ${activeModule === 'settings' ? 'active' : ''}`}
+              onClick={() => setActiveModule('settings')}
+            >
+              <Settings size={16} />
+              <span>Settings</span>
+              <ChevronRight size={14} className="item-arrow" />
+            </div>
+
             <div className="nav-item clear-chat-nav-item" onClick={() => setShowClearModal(true)}>
               <Trash2 size={16} />
               <span>Clear Chat History</span>
               <ChevronRight size={14} className="item-arrow" />
             </div>
-
-            <div className="nav-item">
-              <BookOpen size={16} />
-              <span>Journal</span>
-              <ChevronRight size={14} className="item-arrow" />
-            </div>
-            <div className="nav-item">
-              <Wrench size={16} />
-              <span>Tools</span>
-              <ChevronRight size={14} className="item-arrow" />
-            </div>
-            <div className="nav-item">
-              <Settings size={16} />
-              <span>Settings</span>
-              <ChevronRight size={14} className="item-arrow" />
-            </div>
           </div>
 
-          {/* Logout Action at Bottom */}
           <div className="sidebar-bottom-action-container">
             <button className="nav-item logout-btn" onClick={() => setShowLogoutModal(true)}>
               <LogOut size={16} />
@@ -873,278 +1217,882 @@ function App() {
           </div>
         </aside>
 
-        {/* Main Workspace Glass Container */}
+        {/* Workspace Content Router */}
         <main className="chat-main-area">
           <div className="workspace-glass-card">
-            {/* Unified Centered Welcome Header & Suggestion Cards Block */}
-            <div className="welcome-unified-wrapper">
-              <div className="chat-welcome-banner">
-                <h2>
-                  {getGreeting()}, <span className="highlight-username">{currentUser}</span> ✨
-                </h2>
-                <h3>How are you feeling today?</h3>
-                <p>I'm here to listen, support, and help you feel better.</p>
-              </div>
-
-              {/* Centered Suggestion Pill Cards */}
-              <div className="suggestion-pills-row">
-                <button
-                  className="suggestion-pill-card"
-                  onClick={() => handleSendText("I feel overwhelmed with everything right now.")}
-                >
-                  <div className="pill-icon-circle rose">
-                    <Heart size={16} />
-                  </div>
-                  <div className="pill-text-content">
-                    <span className="pill-title">I feel overwhelmed</span>
-                    <span className="pill-desc">Help me manage stress</span>
-                  </div>
-                </button>
-
-                <button
-                  className="suggestion-pill-card"
-                  onClick={() => handleSendText("I can't sleep and my thoughts are racing.")}
-                >
-                  <div className="pill-icon-circle lavender">
-                    <Moon size={16} />
-                  </div>
-                  <div className="pill-text-content">
-                    <span className="pill-title">I can't sleep</span>
-                    <span className="pill-desc">Improve my sleep</span>
-                  </div>
-                </button>
-
-                <button
-                  className="suggestion-pill-card"
-                  onClick={() => handleSendText("Help me relax and calm my mind.")}
-                >
-                  <div className="pill-icon-circle green">
-                    <Wind size={16} />
-                  </div>
-                  <div className="pill-text-content">
-                    <span className="pill-title">Help me relax</span>
-                    <span className="pill-desc">Calm my mind</span>
-                  </div>
-                </button>
-
-                <button
-                  className="suggestion-pill-card"
-                  onClick={() => handleSendText("I feel happy and had a good day!")}
-                >
-                  <div className="pill-icon-circle amber">
-                    <Sun size={16} />
-                  </div>
-                  <div className="pill-text-content">
-                    <span className="pill-title">I feel happy</span>
-                    <span className="pill-desc">Share my joy</span>
-                  </div>
-                </button>
-
-                <button
-                  className="suggestion-pill-card"
-                  onClick={() => handleSendText("Just need to talk to someone right now.")}
-                >
-                  <div className="pill-icon-circle pink">
-                    <Smile size={16} />
-                  </div>
-                  <div className="pill-text-content">
-                    <span className="pill-title">Just need to talk</span>
-                    <span className="pill-desc">I'm here for you</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Messages Stream */}
-            <div className="messages-scroll-feed">
-              {messages.map((msg, idx) => (
-                <div key={msg.id || idx} className={`msg-wrapper-container ${msg.type === 'user' ? 'user' : 'bot'}`}>
-                  {isSelectMode && (
-                    <input
-                      type="checkbox"
-                      className="msg-checkbox"
-                      checked={selectedMsgIds.has(msg.id)}
-                      onChange={() => handleCheckboxToggle(msg.id)}
-                    />
-                  )}
-
-                  {msg.type === 'bot' && (
-                    <div className="msg-avatar bot-sparkle-avatar">
-                      <Sparkles size={16} />
+            
+            {/* MODULE 1: CHAT HISTORY DRAWER */}
+            {activeModule === 'chat_history' && (
+              <div className="module-view-container animate-fade-in">
+                <div className="module-header-bar">
+                  <div className="module-title-group">
+                    <MessageCircle size={24} className="module-icon purple" />
+                    <div>
+                      <h2>Chat History</h2>
+                      <p>Revisit and continue your previous conversations with HEALIO</p>
                     </div>
-                  )}
+                  </div>
+                  <button className="btn-glass-action" onClick={handleStartNewChat}>
+                    <Plus size={16} /> <span>New Chat</span>
+                  </button>
+                </div>
 
-                  <div className={`msg-bubble ${msg.type === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
-                    <div className="msg-content">
-                      {msg.type === 'bot' && msg.isNew ? (
-                        <TypewriterText text={msg.text} speed={12} />
-                      ) : (
-                        msg.text
+                <div className="module-search-box">
+                  <Search size={16} className="search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search past conversations..."
+                    value={sessionSearchQuery}
+                    onChange={(e) => setSessionSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div className="sessions-scroll-list">
+                  {sessionsList.length === 0 ? (
+                    <div className="empty-state-box">
+                      <MessageCircle size={40} className="empty-icon" />
+                      <h4>No conversations yet</h4>
+                      <p>Start a new chat to begin speaking with HEALIO.</p>
+                      <button className="btn-glass-primary inline" onClick={handleStartNewChat}>
+                        Start Chatting
+                      </button>
+                    </div>
+                  ) : (
+                    sessionsList
+                      .filter((s) => s.title.toLowerCase().includes(sessionSearchQuery.toLowerCase()))
+                      .map((session) => (
+                        <div
+                          key={session.id}
+                          className={`session-card-item ${activeSessionId === session.id ? 'active' : ''}`}
+                        >
+                          <div className="session-card-main" onClick={() => loadSessionMessages(session.id)}>
+                            <div className="session-icon-circle">
+                              <Sparkles size={16} />
+                            </div>
+                            <div className="session-info">
+                              {editingSessionId === session.id ? (
+                                <div className="inline-edit-wrapper" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="text"
+                                    value={editingTitleText}
+                                    onChange={(e) => setEditingTitleText(e.target.value)}
+                                    autoFocus
+                                  />
+                                  <button onClick={() => handleRenameSession(session.id)}><Check size={14} /></button>
+                                </div>
+                              ) : (
+                                <h4 className="session-title">{session.title}</h4>
+                              )}
+                              <p className="session-preview">{session.last_message || 'No messages yet'}</p>
+                              <span className="session-meta">
+                                {session.last_timestamp ? `${session.last_timestamp} • ` : ''}
+                                {new Date(session.updated_at * 1000).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="session-actions">
+                            <button
+                              title="Rename Conversation"
+                              onClick={() => {
+                                setEditingSessionId(session.id);
+                                setEditingTitleText(session.title);
+                              }}
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                            <button
+                              title="Delete Conversation"
+                              className="delete"
+                              onClick={() => handleDeleteSession(session.id)}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* MODULE 2: PERSONAL JOURNAL PANEL */}
+            {activeModule === 'journal' && (
+              <div className="module-view-container animate-fade-in">
+                <div className="module-header-bar">
+                  <div className="module-title-group">
+                    <BookOpen size={24} className="module-icon green" />
+                    <div>
+                      <h2>Personal Wellness Journal</h2>
+                      <p>Privately record your thoughts, reflections, and emotional state</p>
+                    </div>
+                  </div>
+                  <button
+                    className="btn-glass-action green"
+                    onClick={() => {
+                      setJournalForm({ id: null, title: '', content: '', mood: '😌 Calm' });
+                      setShowJournalFormModal(true);
+                    }}
+                  >
+                    <Plus size={16} /> <span>New Entry</span>
+                  </button>
+                </div>
+
+                <div className="module-search-box">
+                  <Search size={16} className="search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Search journal entries..."
+                    value={journalSearchQuery}
+                    onChange={(e) => setJournalSearchQuery(e.target.value)}
+                  />
+                </div>
+
+                <div className="journal-entries-feed">
+                  {journalEntries.length === 0 ? (
+                    <div className="empty-state-box">
+                      <BookOpen size={40} className="empty-icon" />
+                      <h4>Your journal is empty</h4>
+                      <p>Writing down your feelings helps clarify thoughts and relieve emotional stress.</p>
+                      <button
+                        className="btn-glass-primary inline"
+                        onClick={() => {
+                          setJournalForm({ id: null, title: '', content: '', mood: '😌 Calm' });
+                          setShowJournalFormModal(true);
+                        }}
+                      >
+                        Write First Entry
+                      </button>
+                    </div>
+                  ) : (
+                    journalEntries
+                      .filter((j) => j.title.toLowerCase().includes(journalSearchQuery.toLowerCase()) || j.content.toLowerCase().includes(journalSearchQuery.toLowerCase()))
+                      .map((entry) => (
+                        <div key={entry.id} className="journal-entry-card">
+                          <div className="journal-card-header">
+                            <div className="journal-title-box">
+                              {entry.mood && <span className="journal-mood-pill">{entry.mood}</span>}
+                              <h3>{entry.title}</h3>
+                            </div>
+                            <span className="journal-date">{new Date(entry.created_at * 1000).toLocaleDateString()}</span>
+                          </div>
+
+                          <p className="journal-content-body">{entry.content}</p>
+
+                          <div className="journal-card-footer">
+                            <button
+                              className="btn-reflect-ai"
+                              disabled={isReflectingId === entry.id}
+                              onClick={() => handleReflectJournalEntry(entry)}
+                            >
+                              <Sparkles size={14} />
+                              <span>{isReflectingId === entry.id ? 'Reflecting with HEALIO...' : 'Reflect with HEALIO'}</span>
+                            </button>
+
+                            <div className="journal-card-actions">
+                              <button
+                                onClick={() => {
+                                  setJournalForm(entry);
+                                  setShowJournalFormModal(true);
+                                }}
+                              >
+                                <Edit3 size={15} />
+                              </button>
+                              <button className="delete" onClick={() => handleDeleteJournalEntry(entry.id)}>
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {journalReflections[entry.id] && (
+                            <div className="ai-reflection-box animate-fade-in">
+                              <div className="reflection-header">
+                                <Sparkles size={16} className="sparkle-icon" />
+                                <strong>HEALIO Reflection & Insights</strong>
+                              </div>
+                              <p>{journalReflections[entry.id]}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* MODULE 3: WELLNESS TOOLS PANEL */}
+            {activeModule === 'wellness_tools' && (
+              <div className="module-view-container animate-fade-in">
+                <div className="module-header-bar">
+                  <div className="module-title-group">
+                    <Wrench size={24} className="module-icon purple" />
+                    <div>
+                      <h2>Wellness Tools</h2>
+                      <p>Quick self-help mindfulness exercises and relaxing soundscapes</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="tools-cards-grid">
+                  {/* Tool 1: Guided Breathing */}
+                  <div className="tool-feature-card" onClick={() => setActiveWellnessTool('breathing')}>
+                    <div className="tool-card-icon green">
+                      <Wind size={24} />
+                    </div>
+                    <h3>Guided Breathing</h3>
+                    <p>Calm your nervous system with 4-7-8 breathing cycles.</p>
+                    <span className="tool-badge">2 / 5 / 10 Min</span>
+                  </div>
+
+                  {/* Tool 2: Grounding Exercise */}
+                  <div className="tool-feature-card" onClick={() => setActiveWellnessTool('grounding')}>
+                    <div className="tool-card-icon purple">
+                      <Sparkles size={24} />
+                    </div>
+                    <h3>5-4-3-2-1 Grounding</h3>
+                    <p>Relieve acute anxiety by focusing on sensory awareness.</p>
+                    <span className="tool-badge">Guided Step Wizard</span>
+                  </div>
+
+                  {/* Tool 3: Mood Check-In */}
+                  <div className="tool-feature-card" onClick={() => setActiveWellnessTool('mood_checkin')}>
+                    <div className="tool-card-icon amber">
+                      <Sun size={24} />
+                    </div>
+                    <h3>Mood Check-In</h3>
+                    <p>Record how you feel right now to track emotional wellbeing.</p>
+                    <span className="tool-badge">Instant Log</span>
+                  </div>
+
+                  {/* Tool 4: Daily Wellness Tip */}
+                  <div className="tool-feature-card" onClick={() => setActiveWellnessTool('daily_tip')}>
+                    <div className="tool-card-icon rose">
+                      <Heart size={24} />
+                    </div>
+                    <h3>Daily Wellness Tip</h3>
+                    <p>Actionable daily advice for mental health and relaxation.</p>
+                    <span className="tool-badge">Refreshed Daily</span>
+                  </div>
+
+                  {/* Tool 5: Relaxation Sounds */}
+                  <div className="tool-feature-card" onClick={() => setActiveWellnessTool('relaxation_sounds')}>
+                    <div className="tool-card-icon blue">
+                      <Volume2 size={24} />
+                    </div>
+                    <h3>Relaxation Sounds</h3>
+                    <p>Soothing rain, ocean waves, forest sounds, and white noise.</p>
+                    <span className="tool-badge">Ambient Audio</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MODULE 4: SETTINGS PANEL */}
+            {activeModule === 'settings' && (
+              <div className="module-view-container animate-fade-in">
+                <div className="module-header-bar">
+                  <div className="module-title-group">
+                    <Settings size={24} className="module-icon slate" />
+                    <div>
+                      <h2>Settings & Preferences</h2>
+                      <p>Manage your account, AI behavior, theme, and privacy preferences</p>
+                    </div>
+                  </div>
+                  {settingsSavedMessage && <span className="settings-saved-pill">{settingsSavedMessage}</span>}
+                </div>
+
+                <div className="settings-scroll-body">
+                  {/* Account Section */}
+                  <div className="settings-group-card">
+                    <h3>Account Profile</h3>
+                    <div className="settings-profile-row">
+                      <div className="large-avatar-circle">{currentUser.charAt(0).toUpperCase()}</div>
+                      <div>
+                        <h4>{currentUser}</h4>
+                        <p>user@{currentUser.toLowerCase()}.healio.app</p>
+                        <span className="membership-pill">Premium Member</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Appearance Section */}
+                  <div className="settings-group-card">
+                    <h3>Appearance</h3>
+                    <div className="setting-control-row">
+                      <label>Theme Mode</label>
+                      <div className="pill-options-group">
+                        {['light', 'dark', 'system'].map((t) => (
+                          <button
+                            key={t}
+                            className={`pill-option ${userSettings.theme === t ? 'active' : ''}`}
+                            onClick={() => handleSaveSettings({ theme: t })}
+                          >
+                            {t.charAt(0).toUpperCase() + t.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="setting-control-row">
+                      <label>Font Size</label>
+                      <div className="pill-options-group">
+                        {['small', 'medium', 'large'].map((s) => (
+                          <button
+                            key={s}
+                            className={`pill-option ${userSettings.font_size === s ? 'active' : ''}`}
+                            onClick={() => handleSaveSettings({ font_size: s })}
+                          >
+                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Preferences Section */}
+                  <div className="settings-group-card">
+                    <h3>AI Companion Tone</h3>
+                    <div className="pill-options-group full-width">
+                      {['Supportive', 'Friendly', 'Professional', 'Motivational'].map((tone) => (
+                        <button
+                          key={tone}
+                          className={`pill-option ${userSettings.ai_tone === tone ? 'active' : ''}`}
+                          onClick={() => handleSaveSettings({ ai_tone: tone })}
+                        >
+                          {tone}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Privacy & Danger Zone */}
+                  <div className="settings-group-card danger-zone">
+                    <h3>Privacy & Data Control</h3>
+                    <div className="danger-actions-grid">
+                      <button className="btn-glass-action" onClick={handleExportData}>
+                        <Download size={16} /> <span>Export All Data (JSON)</span>
+                      </button>
+                      <button className="btn-glass-action danger" onClick={() => setShowClearModal(true)}>
+                        <Trash2 size={16} /> <span>Delete Chat History</span>
+                      </button>
+                      <button className="btn-glass-action danger" onClick={() => setShowClearModal(true)}>
+                        <Trash2 size={16} /> <span>Delete Journal Entries</span>
+                      </button>
+                      <button className="btn-glass-action danger" onClick={handleClearAllData}>
+                        <AlertTriangle size={16} /> <span>Clear All Application Data</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Notifications Readiness Toggles */}
+                  <div className="settings-group-card">
+                    <h3>Notification Reminders (Future-Ready)</h3>
+                    <div className="setting-toggle-row">
+                      <span>Daily Wellness Check Reminder</span>
+                      <input
+                        type="checkbox"
+                        checked={!!userSettings.daily_reminder}
+                        onChange={(e) => handleSaveSettings({ daily_reminder: e.target.checked ? 1 : 0 })}
+                      />
+                    </div>
+                    <div className="setting-toggle-row">
+                      <span>Mood Check-In Reminder</span>
+                      <input
+                        type="checkbox"
+                        checked={!!userSettings.mood_reminder}
+                        onChange={(e) => handleSaveSettings({ mood_reminder: e.target.checked ? 1 : 0 })}
+                      />
+                    </div>
+                    <div className="setting-toggle-row">
+                      <span>Journal Reflection Reminder</span>
+                      <input
+                        type="checkbox"
+                        checked={!!userSettings.journal_reminder}
+                        onChange={(e) => handleSaveSettings({ journal_reminder: e.target.checked ? 1 : 0 })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* DEFAULT CHAT WORKSPACE VIEW */}
+            {!activeModule && (
+              <>
+                <div className="welcome-unified-wrapper">
+                  <div className="chat-welcome-banner">
+                    <h2>
+                      {getGreeting()}, <span className="highlight-username">{currentUser}</span> ✨
+                    </h2>
+                    <h3>How are you feeling today?</h3>
+                    <p>I'm here to listen, support, and help you feel better.</p>
+                  </div>
+
+                  <div className="suggestion-pills-row">
+                    <button
+                      className="suggestion-pill-card"
+                      onClick={() => handleSendText("I feel overwhelmed with everything right now.")}
+                    >
+                      <div className="pill-icon-circle rose">
+                        <Heart size={16} />
+                      </div>
+                      <div className="pill-text-content">
+                        <span className="pill-title">I feel overwhelmed</span>
+                        <span className="pill-desc">Help me manage stress</span>
+                      </div>
+                    </button>
+
+                    <button
+                      className="suggestion-pill-card"
+                      onClick={() => handleSendText("I can't sleep and my thoughts are racing.")}
+                    >
+                      <div className="pill-icon-circle lavender">
+                        <Moon size={16} />
+                      </div>
+                      <div className="pill-text-content">
+                        <span className="pill-title">I can't sleep</span>
+                        <span className="pill-desc">Improve my sleep</span>
+                      </div>
+                    </button>
+
+                    <button
+                      className="suggestion-pill-card"
+                      onClick={() => handleSendText("Help me relax and calm my mind.")}
+                    >
+                      <div className="pill-icon-circle green">
+                        <Wind size={16} />
+                      </div>
+                      <div className="pill-text-content">
+                        <span className="pill-title">Help me relax</span>
+                        <span className="pill-desc">Calm my mind</span>
+                      </div>
+                    </button>
+
+                    <button
+                      className="suggestion-pill-card"
+                      onClick={() => handleSendText("I feel happy and had a good day!")}
+                    >
+                      <div className="pill-icon-circle amber">
+                        <Sun size={16} />
+                      </div>
+                      <div className="pill-text-content">
+                        <span className="pill-title">I feel happy</span>
+                        <span className="pill-desc">Share my joy</span>
+                      </div>
+                    </button>
+
+                    <button
+                      className="suggestion-pill-card"
+                      onClick={() => handleSendText("Just need to talk to someone right now.")}
+                    >
+                      <div className="pill-icon-circle pink">
+                        <Smile size={16} />
+                      </div>
+                      <div className="pill-text-content">
+                        <span className="pill-title">Just need to talk</span>
+                        <span className="pill-desc">I'm here for you</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Messages Stream */}
+                <div className="messages-scroll-feed">
+                  {messages.map((msg, idx) => (
+                    <div key={msg.id || idx} className={`msg-wrapper-container ${msg.type === 'user' ? 'user' : 'bot'}`}>
+                      {isSelectMode && (
+                        <input
+                          type="checkbox"
+                          className="msg-checkbox"
+                          checked={selectedMsgIds.has(msg.id)}
+                          onChange={() => handleCheckboxToggle(msg.id)}
+                        />
+                      )}
+
+                      {msg.type === 'bot' && (
+                        <div className="msg-avatar bot-sparkle-avatar">
+                          <Sparkles size={16} />
+                        </div>
+                      )}
+
+                      <div className={`msg-bubble ${msg.type === 'user' ? 'bubble-user' : 'bubble-bot'}`}>
+                        <div className="msg-content">
+                          {msg.type === 'bot' && msg.isNew ? (
+                            <TypewriterText text={msg.text} speed={12} />
+                          ) : (
+                            msg.text
+                          )}
+                        </div>
+                        <div className="msg-time-stamp">
+                          {msg.timestamp || '10:24 AM'} {msg.type === 'user' && '✓✓'}
+                        </div>
+                      </div>
+
+                      {msg.type === 'user' && (
+                        <div className="msg-avatar user-icon-avatar">
+                          <User size={16} />
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        className={`btn-msg-dots ${openDropdownId === msg.id ? 'active' : ''}`}
+                        title="Message Options"
+                        onClick={() => setOpenDropdownId((prev) => (prev === msg.id ? null : msg.id))}
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+
+                      {openDropdownId === msg.id && (
+                        <div className="msg-options-dropdown">
+                          <button
+                            type="button"
+                            className="dropdown-item-btn"
+                            onClick={() => handleReadAloud(msg)}
+                          >
+                            <Volume2 size={15} /> <span>Read Aloud</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="dropdown-item-btn delete"
+                            onClick={() => handleDeleteSingleMessage(msg.id, msg.turnIndex ?? Math.floor(idx / 2))}
+                          >
+                            <Trash2 size={15} /> <span>Delete Message</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="dropdown-item-btn"
+                            onClick={() => handleToggleSelectMode(msg.id)}
+                          >
+                            <CheckSquare size={15} /> <span>Select</span>
+                          </button>
+                        </div>
                       )}
                     </div>
-                    <div className="msg-time-stamp">
-                      {msg.timestamp || '10:24 AM'} {msg.type === 'user' && '✓✓'}
-                    </div>
-                  </div>
+                  ))}
 
-                  {msg.type === 'user' && (
-                    <div className="msg-avatar user-icon-avatar">
-                      <User size={16} />
+                  {isLoading && (
+                    <div className="msg-wrapper-container bot">
+                      <div className="msg-avatar bot-sparkle-avatar">
+                        <Sparkles size={16} />
+                      </div>
+                      <div className="msg-bubble bubble-bot">
+                        <span style={{ color: '#64748b', fontStyle: 'italic' }}>Thinking & listening...</span>
+                      </div>
                     </div>
                   )}
 
-                  {/* 3-Dots Action Button */}
+                  {isSelectMode && (
+                    <div className="bulk-delete-bar">
+                      <span>{selectedMsgIds.size} message(s) selected</span>
+                      <button className="btn-bulk-delete" onClick={handleDeleteSelectedMessages}>
+                        <Trash2 size={15} /> Delete Selected
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom Floating Input Capsule */}
+                <div className="input-capsule-bar">
                   <button
-                    type="button"
-                    className={`btn-msg-dots ${openDropdownId === msg.id ? 'active' : ''}`}
-                    title="Message Options"
-                    onClick={() => setOpenDropdownId((prev) => (prev === msg.id ? null : msg.id))}
+                    className={`btn-paperclip ${showUploadPopup ? 'active' : ''}`}
+                    title="Upload Media"
+                    onClick={() => setShowUploadPopup((prev) => !prev)}
                   >
-                    <MoreVertical size={16} />
+                    <Paperclip size={18} />
                   </button>
 
-                  {/* Options Menu */}
-                  {openDropdownId === msg.id && (
-                    <div className="msg-options-dropdown">
-                      <button
-                        type="button"
-                        className="dropdown-item-btn"
-                        onClick={() => handleReadAloud(msg)}
-                      >
-                        <Volume2 size={15} /> <span>Read Aloud</span>
+                  {showUploadPopup && (
+                    <div className="paperclip-popup-menu">
+                      <button className="popup-item-btn" onClick={() => audioInputRef.current?.click()}>
+                        <Mic size={16} />
+                        <span>Upload Audio</span>
                       </button>
-                      <button
-                        type="button"
-                        className="dropdown-item-btn delete"
-                        onClick={() => handleDeleteSingleMessage(msg.id, msg.turnIndex ?? Math.floor(idx / 2))}
-                      >
-                        <Trash2 size={15} /> <span>Delete Message</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="dropdown-item-btn"
-                        onClick={() => handleToggleSelectMode(msg.id)}
-                      >
-                        <CheckSquare size={15} /> <span>Select</span>
+                      <button className="popup-item-btn" onClick={() => videoInputRef.current?.click()}>
+                        <Image size={16} />
+                        <span>Upload Video</span>
                       </button>
                     </div>
                   )}
-                </div>
-              ))}
 
-              {isLoading && (
-                <div className="msg-wrapper-container bot">
-                  <div className="msg-avatar bot-sparkle-avatar">
-                    <Sparkles size={16} />
+                  <textarea
+                    ref={textareaRef}
+                    className="textarea-auto-expand"
+                    placeholder="Tell me what's on your mind..."
+                    value={textInput}
+                    rows={1}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (textInput.trim()) {
+                          handleSendText(textInput);
+                        }
+                      }
+                    }}
+                  />
+
+                  <div className="right-action-group">
+                    <button
+                      type="button"
+                      className="btn-media-icon"
+                      title="Photo / Video Attachment"
+                      onClick={() => videoInputRef.current?.click()}
+                    >
+                      <Image size={18} />
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`btn-media-icon ${isRecordingAudio ? 'recording' : ''}`}
+                      title="Voice Recording"
+                      onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
+                    >
+                      <Mic size={18} />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn-send-circular"
+                      disabled={!textInput.trim() && !isRecordingAudio}
+                      onClick={() => {
+                        if (textInput.trim()) {
+                          handleSendText(textInput);
+                        }
+                      }}
+                    >
+                      <Send size={16} />
+                    </button>
                   </div>
-                  <div className="msg-bubble bubble-bot">
-                    <span style={{ color: '#64748b', fontStyle: 'italic' }}>Thinking & listening...</span>
-                  </div>
                 </div>
-              )}
+              </>
+            )}
 
-              {/* Bulk Delete Bar */}
-              {isSelectMode && (
-                <div className="bulk-delete-bar">
-                  <span>{selectedMsgIds.size} message(s) selected</span>
-                  <button className="btn-bulk-delete" onClick={handleDeleteSelectedMessages}>
-                    <Trash2 size={15} /> Delete Selected
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Bottom Floating Input Capsule */}
-            <div className="input-capsule-bar">
-              <button
-                className={`btn-paperclip ${showUploadPopup ? 'active' : ''}`}
-                title="Upload Media"
-                onClick={() => setShowUploadPopup((prev) => !prev)}
-              >
-                <Paperclip size={18} />
-              </button>
-
-              {/* Paperclip Upload Popup */}
-              {showUploadPopup && (
-                <div className="paperclip-popup-menu">
-                  <button className="popup-item-btn" onClick={() => audioInputRef.current?.click()}>
-                    <Mic size={16} />
-                    <span>Upload Audio</span>
-                  </button>
-                  <button className="popup-item-btn" onClick={() => videoInputRef.current?.click()}>
-                    <Image size={16} />
-                    <span>Upload Video</span>
-                  </button>
-                </div>
-              )}
-
-              <textarea
-                ref={textareaRef}
-                className="textarea-auto-expand"
-                placeholder="Tell me what's on your mind..."
-                value={textInput}
-                rows={1}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (textInput.trim()) {
-                      handleSendText(textInput);
-                    }
-                  }
-                }}
-              />
-
-              <div className="right-action-group">
-                <button
-                  type="button"
-                  className="btn-media-icon"
-                  title="Photo / Video Attachment"
-                  onClick={() => videoInputRef.current?.click()}
-                >
-                  <Image size={18} />
-                </button>
-
-                <button
-                  type="button"
-                  className={`btn-media-icon ${isRecordingAudio ? 'recording' : ''}`}
-                  title="Voice Recording"
-                  onClick={isRecordingAudio ? stopAudioRecording : startAudioRecording}
-                >
-                  <Mic size={18} />
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-send-circular"
-                  disabled={!textInput.trim() && !isRecordingAudio}
-                  onClick={() => {
-                    if (textInput.trim()) {
-                      handleSendText(textInput);
-                    }
-                  }}
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </div>
           </div>
         </main>
       </div>
 
-      {/* Guided Breathing Exercise Modal */}
-      {showBreathingModal && (
-        <div className="breathing-modal-overlay" onClick={() => setShowBreathingModal(false)}>
-          <div className="breathing-card" onClick={(e) => e.stopPropagation()}>
-            <h3>Guided Breathing Exercise</h3>
-            <p className="modal-desc">Follow the relaxing circle animation to calm your mind.</p>
-            <div className="breathing-circle-wrapper">
-              <div className="breathing-circle-pulse"></div>
-            </div>
-            <h4 className="breathing-instruction">{breathingText}</h4>
-            <button className="btn-glass-primary" onClick={() => setShowBreathingModal(false)}>
-              Done / Close
-            </button>
+      {/* JOURNAL NEW / EDIT FORM MODAL */}
+      {showJournalFormModal && (
+        <div className="warning-modal-overlay" onClick={() => setShowJournalFormModal(false)}>
+          <div className="journal-modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>{journalForm.id ? 'Edit Journal Entry' : 'New Journal Entry'}</h3>
+            <form onSubmit={handleSaveJournalEntry} className="journal-form">
+              <div className="glass-input-group">
+                <label>Title</label>
+                <input
+                  type="text"
+                  className="glass-input"
+                  placeholder="E.g., Reflection after work..."
+                  value={journalForm.title}
+                  onChange={(e) => setJournalForm({ ...journalForm, title: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="glass-input-group">
+                <label>Optional Mood</label>
+                <div className="pill-options-group">
+                  {['😊 Happy', '😔 Sad', '😟 Anxious', '😌 Calm', '😴 Tired'].map((m) => (
+                    <button
+                      type="button"
+                      key={m}
+                      className={`pill-option ${journalForm.mood === m ? 'active' : ''}`}
+                      onClick={() => setJournalForm({ ...journalForm, mood: m })}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="glass-input-group">
+                <label>Private Reflections & Thoughts</label>
+                <textarea
+                  className="glass-textarea"
+                  placeholder="Write your honest thoughts here..."
+                  rows={5}
+                  value={journalForm.content}
+                  onChange={(e) => setJournalForm({ ...journalForm, content: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="modal-actions-group">
+                <button type="button" className="btn-modal-cancel" onClick={() => setShowJournalFormModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-modal-confirm purple">
+                  Save Entry
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* WELLNESS TOOLS INTERACTIVE MODALS */}
+      {activeWellnessTool && (
+        <div className="warning-modal-overlay" onClick={() => { setActiveWellnessTool(null); ambientSynth.stop(); }}>
+          <div className="wellness-tool-modal-card" onClick={(e) => e.stopPropagation()}>
+            {/* Tool 1: Guided Breathing */}
+            {activeWellnessTool === 'breathing' && (
+              <div className="tool-modal-content">
+                <h3>Guided Breathing Exercise</h3>
+                <p className="modal-desc">Select duration and follow the expanding ring to relax.</p>
+                <div className="duration-selector-row">
+                  {[2, 5, 10].map((d) => (
+                    <button
+                      key={d}
+                      className={`pill-option ${breathingDuration === d ? 'active' : ''}`}
+                      onClick={() => setBreathingDuration(d)}
+                    >
+                      {d} Minutes
+                    </button>
+                  ))}
+                </div>
+
+                <div className="breathing-circle-wrapper">
+                  <div className="breathing-circle-pulse"></div>
+                </div>
+
+                <h4 className="breathing-instruction">{breathingText}</h4>
+                <button className="btn-glass-primary" onClick={() => setActiveWellnessTool(null)}>
+                  Close Exercise
+                </button>
+              </div>
+            )}
+
+            {/* Tool 2: 5-4-3-2-1 Grounding Exercise */}
+            {activeWellnessTool === 'grounding' && (
+              <div className="tool-modal-content">
+                <h3>5-4-3-2-1 Grounding Technique</h3>
+                <p className="modal-desc">Acknowledge your surroundings to anchor yourself in the present.</p>
+
+                <div className="grounding-step-box">
+                  <span className="step-count">{5 - groundingStep}</span>
+                  <h4>
+                    {groundingStep === 0 && "Name 5 things you can SEE around you"}
+                    {groundingStep === 1 && "Name 4 things you can TOUCH or feel"}
+                    {groundingStep === 2 && "Name 3 things you can HEAR"}
+                    {groundingStep === 3 && "Name 2 things you can SMELL"}
+                    {groundingStep === 4 && "Name 1 thing you can TASTE"}
+                  </h4>
+                  <input
+                    type="text"
+                    className="glass-input"
+                    placeholder="Type or reflect on what you notice..."
+                    value={groundingInputs[5 - groundingStep] || ''}
+                    onChange={(e) => setGroundingInputs({ ...groundingInputs, [5 - groundingStep]: e.target.value })}
+                  />
+                </div>
+
+                <div className="modal-actions-group">
+                  {groundingStep > 0 && (
+                    <button className="btn-modal-cancel" onClick={() => setGroundingStep(groundingStep - 1)}>
+                      Previous Step
+                    </button>
+                  )}
+                  {groundingStep < 4 ? (
+                    <button className="btn-modal-confirm purple" onClick={() => setGroundingStep(groundingStep + 1)}>
+                      Next Step ({groundingStep + 1}/5)
+                    </button>
+                  ) : (
+                    <button className="btn-modal-confirm purple" onClick={() => { setGroundingStep(0); setActiveWellnessTool(null); }}>
+                      Complete Grounding
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tool 3: Mood Check-In */}
+            {activeWellnessTool === 'mood_checkin' && (
+              <div className="tool-modal-content">
+                <h3>Mood Check-In</h3>
+                <p className="modal-desc">How are you feeling right now?</p>
+
+                <div className="mood-checkin-grid">
+                  {[
+                    { emoji: '😄', label: 'Happy' },
+                    { emoji: '😌', label: 'Calm' },
+                    { emoji: '😔', label: 'Sad' },
+                    { emoji: '😰', label: 'Anxious' },
+                    { emoji: '😐', label: 'Neutral' },
+                    { emoji: '😴', label: 'Tired' },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      className="mood-select-btn"
+                      onClick={() => handleMoodCheckin(item.emoji, item.label)}
+                    >
+                      <span className="emoji">{item.emoji}</span>
+                      <span className="label">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tool 4: Daily Wellness Tip */}
+            {activeWellnessTool === 'daily_tip' && (
+              <div className="tool-modal-content">
+                <Heart size={36} color="#ec4899" style={{ margin: '0 auto 12px auto' }} />
+                <h3>Daily Wellness Tip</h3>
+                <p className="tip-quote-box">"{dailyTip}"</p>
+                <button className="btn-glass-primary" onClick={() => setActiveWellnessTool(null)}>
+                  Got It / Close
+                </button>
+              </div>
+            )}
+
+            {/* Tool 5: Relaxation Sounds */}
+            {activeWellnessTool === 'relaxation_sounds' && (
+              <div className="tool-modal-content">
+                <Volume2 size={36} color="#6366f1" style={{ margin: '0 auto 12px auto' }} />
+                <h3>Relaxation Soundscapes</h3>
+                <p className="modal-desc">Tap any ambient sound to play calming background audio.</p>
+
+                <div className="soundscapes-grid">
+                  {[
+                    { id: 'rain', name: 'Rain 🌧️' },
+                    { id: 'ocean', name: 'Ocean Waves 🌊' },
+                    { id: 'forest', name: 'Forest 🌲' },
+                    { id: 'whitenoise', name: 'White Noise 💨' },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      className={`sound-play-btn ${activeSound === s.id ? 'active' : ''}`}
+                      onClick={() => {
+                        if (activeSound === s.id) {
+                          ambientSynth.stop();
+                          setActiveSound(null);
+                        } else {
+                          ambientSynth.play(s.id);
+                          setActiveSound(s.id);
+                        }
+                      }}
+                    >
+                      <span>{s.name}</span>
+                      {activeSound === s.id ? <VolumeX size={16} /> : <Play size={16} />}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  className="btn-glass-primary danger"
+                  onClick={() => {
+                    ambientSynth.stop();
+                    setActiveSound(null);
+                    setActiveWellnessTool(null);
+                  }}
+                  style={{ marginTop: '20px' }}
+                >
+                  Stop Audio & Close
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
       )}
@@ -1161,18 +2109,10 @@ function App() {
               Are you sure you want to clear your chat history? This will permanently delete all messages from your database.
             </p>
             <div className="modal-actions-group">
-              <button
-                type="button"
-                className="btn-modal-cancel"
-                onClick={() => setShowClearModal(false)}
-              >
+              <button className="btn-modal-cancel" onClick={() => setShowClearModal(false)}>
                 Cancel
               </button>
-              <button
-                type="button"
-                className="btn-modal-confirm danger"
-                onClick={confirmClearChat}
-              >
+              <button className="btn-modal-confirm danger" onClick={confirmClearChat}>
                 Yes, Clear
               </button>
             </div>
@@ -1192,18 +2132,10 @@ function App() {
               Are you sure you want to log out of your session? Your wellness data will remain securely saved.
             </p>
             <div className="modal-actions-group">
-              <button
-                type="button"
-                className="btn-modal-cancel"
-                onClick={() => setShowLogoutModal(false)}
-              >
+              <button className="btn-modal-cancel" onClick={() => setShowLogoutModal(false)}>
                 Cancel
               </button>
-              <button
-                type="button"
-                className="btn-modal-confirm purple"
-                onClick={confirmLogout}
-              >
+              <button className="btn-modal-confirm purple" onClick={confirmLogout}>
                 Yes, Log Out
               </button>
             </div>

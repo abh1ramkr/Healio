@@ -22,6 +22,8 @@ try:
 except ImportError:
     FIREBASE_AVAILABLE = False
 
+import db_manager
+
 # Load environment variables
 env_path = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(env_path)
@@ -158,31 +160,32 @@ def generate_vector_embedding(text: str) -> List[float]:
 
 def register_user_db(username: str, password: str) -> bool:
     password_hash = hash_password(password)
+    # Always register in SQLite db_manager
+    sqlite_success = db_manager.db_register_user(username, password_hash)
     if db is not None:
         try:
             doc_ref = db.collection("users").document(username)
-            if doc_ref.get().exists:
-                return False
-            doc_ref.set({
-                "username": username,
-                "password_hash": password_hash,
-                "created_at": firestore.SERVER_TIMESTAMP
-            })
-            return True
+            if not doc_ref.get().exists:
+                doc_ref.set({
+                    "username": username,
+                    "password_hash": password_hash,
+                    "created_at": firestore.SERVER_TIMESTAMP
+                })
         except Exception as e:
             print(f"Firestore register error: {e}")
     
-    if username in fallback_users:
-        return False
-    fallback_users[username] = {
-        "username": username,
-        "password_hash": password_hash,
-        "created_at": time.time()
-    }
-    return True
+    if username not in fallback_users:
+        fallback_users[username] = {
+            "username": username,
+            "password_hash": password_hash,
+            "created_at": time.time()
+        }
+    return sqlite_success
 
 def verify_user_db(username: str, password: str) -> bool:
     password_hash = hash_password(password)
+    if db_manager.db_verify_user(username, password_hash):
+        return True
     if db is not None:
         try:
             doc_ref = db.collection("users").document(username)
@@ -489,21 +492,182 @@ def login_endpoint(username: str = Form(...), password: str = Form(...)):
     else:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
+# --- AI Titling & Journal Reflection Helpers ---
+def generate_ai_title(first_prompt: str) -> str:
+    if not first_prompt or len(first_prompt.strip()) == 0:
+        return "Mental Wellness Session"
+    
+    clean_prompt = first_prompt.strip()[:100]
+    words = [w.capitalize() for w in clean_prompt.split() if len(w) > 2]
+    fallback_title = " ".join(words[:4]) if words else "Mental Wellness Session"
+
+    load_dotenv(env_path, override=True)
+    api_key = os.getenv("GEMINI_API_KEY", API_KEY)
+    
+    if GENAI_AVAILABLE and api_key and len(api_key) > 10:
+        try:
+            genai.configure(api_key=api_key)
+            g_model = genai.GenerativeModel("gemini-2.0-flash")
+            res = g_model.generate_content(
+                f"Summarize this query into a concise 3-4 word title: '{clean_prompt}'. Return title only without quotes."
+            )
+            if res and res.text:
+                title = res.text.strip().replace('"', '').replace("'", "")
+                if 3 < len(title) < 40:
+                    return title
+        except Exception:
+            pass
+            
+    return fallback_title if len(fallback_title) > 3 else "Mental Wellness Session"
+
+def generate_journal_reflection(content: str, mood: Optional[str] = None) -> str:
+    prompt = (
+        f"You are HEALIO, an empathetic AI mental wellness companion.\n"
+        f"The user wrote a private journal entry:\n"
+        f"Mood: {mood or 'Not specified'}\n"
+        f"Content:\n'{content}'\n\n"
+        f"Provide a gentle, compassionate reflection for the user:\n"
+        f"1. Acknowledge and validate their emotional state.\n"
+        f"2. Provide 2 gentle insights or actionable mindfulness recommendations.\n"
+        f"3. End with a warm, encouraging closing sentence.\n"
+        f"Keep the reflection soothing and under 150 words."
+    )
+    return get_gemini_response(content, [("reflection", 1.0)])
+
+# --- Chat Session Endpoints ---
+@app.get("/sessions")
+def get_sessions_endpoint(username: str = "default"):
+    sessions = db_manager.get_user_sessions(username)
+    return {"sessions": sessions}
+
+@app.get("/session_messages")
+def get_session_messages_endpoint(session_id: str, username: str = "default"):
+    messages = db_manager.get_session_messages(session_id, username)
+    return {"messages": messages}
+
+@app.post("/create_session")
+def create_session_endpoint(username: str = Form("default"), title: str = Form("New Conversation")):
+    sid = db_manager.create_chat_session(username, title)
+    return {"session_id": sid, "title": title}
+
+@app.post("/rename_session")
+def rename_session_endpoint(session_id: str = Form(...), title: str = Form(...)):
+    db_manager.update_session_title(session_id, title.strip())
+    return {"success": True, "message": "Session renamed successfully."}
+
+@app.post("/delete_session")
+def delete_session_endpoint(session_id: str = Form(...), username: str = Form("default")):
+    db_manager.delete_chat_session(session_id, username)
+    return {"success": True, "message": "Session deleted successfully."}
+
+# Update chat endpoint to support session_id and SQLite persistence
 @app.post("/chat")
-def chat_endpoint(text_input: str = Form(...), username: str = Form("default")):
+def chat_endpoint(text_input: str = Form(...), username: str = Form("default"), session_id: Optional[str] = Form(None)):
     text, emotions_text, gemini_response, chat_history_text, audio_path = process_media(None, None, text_input, username)
     if audio_path:
         with open(audio_path, "rb") as f:
             audio_base64 = base64.b64encode(f.read()).decode()
     else:
         audio_base64 = ""
+    
+    # Save to SQLite db_manager
+    sid = session_id
+    if not sid or sid == "new":
+        ai_title = generate_ai_title(text_input)
+        sid = db_manager.create_chat_session(username, ai_title)
+    
+    now_str = time.strftime("%I:%M %p")
+    user_msg = db_manager.save_chat_message(sid, username, "user", text_input, emotions_text, now_str)
+    bot_msg = db_manager.save_chat_message(sid, username, "bot", gemini_response, emotions_text, now_str)
+
     return {
         "transcription": text,
         "emotions": emotions_text,
         "response": gemini_response,
         "history": chat_history_text,
-        "audio_base64": audio_base64
+        "audio_base64": audio_base64,
+        "session_id": sid,
+        "user_msg": user_msg,
+        "bot_msg": bot_msg
     }
+
+# --- Journal Endpoints ---
+@app.get("/journal/list")
+def list_journal_endpoint(username: str = "default"):
+    entries = db_manager.get_user_journal_entries(username)
+    return {"entries": entries}
+
+@app.post("/journal/create")
+def create_journal_endpoint(username: str = Form("default"), title: str = Form(...), content: str = Form(...), mood: Optional[str] = Form(None)):
+    entry = db_manager.create_journal_entry(username, title.strip(), content.strip(), mood)
+    return {"success": True, "entry": entry}
+
+@app.post("/journal/update")
+def update_journal_endpoint(id: str = Form(...), username: str = Form("default"), title: str = Form(...), content: str = Form(...), mood: Optional[str] = Form(None)):
+    success = db_manager.update_journal_entry(id, username, title.strip(), content.strip(), mood)
+    return {"success": success}
+
+@app.post("/journal/delete")
+def delete_journal_endpoint(id: str = Form(...), username: str = Form("default")):
+    success = db_manager.delete_journal_entry(id, username)
+    return {"success": success}
+
+@app.post("/journal/reflect")
+def reflect_journal_endpoint(content: str = Form(...), mood: Optional[str] = Form(None)):
+    reflection = generate_journal_reflection(content, mood)
+    return {"reflection": reflection}
+
+# --- Wellness Tools & Mood Check-In Endpoints ---
+@app.post("/mood_checkin")
+def mood_checkin_endpoint(username: str = Form("default"), mood_emoji: str = Form(...), mood_label: str = Form(...)):
+    log = db_manager.save_mood_log(username, mood_emoji, mood_label)
+    return {"success": True, "log": log}
+
+@app.get("/latest_mood")
+def latest_mood_endpoint(username: str = "default"):
+    log = db_manager.get_latest_mood_log(username)
+    return {"log": log}
+
+@app.get("/daily_tip")
+def daily_tip_endpoint():
+    tips = [
+        "Take a five-minute walk without your phone today to refresh your mind.",
+        "Practice 4-7-8 breathing when feeling overwhelmed: Inhale 4s, Hold 7s, Exhale 8s.",
+        "Acknowledge one thing you are truly grateful for right now.",
+        "Drink a warm glass of water and stretch your shoulders gently.",
+        "Remember: You don't have to figure everything out today. Take it step by step."
+    ]
+    day_idx = int(time.time() // 86400) % len(tips)
+    return {"tip": tips[day_idx]}
+
+# --- Settings & Data Export / Wipe Endpoints ---
+@app.get("/settings")
+def get_settings_endpoint(username: str = "default"):
+    settings = db_manager.get_user_settings(username)
+    return {"settings": settings}
+
+@app.post("/settings/update")
+def update_settings_endpoint(
+    username: str = Form("default"),
+    theme: str = Form("light"),
+    font_size: str = Form("medium"),
+    ai_tone: str = Form("Supportive"),
+    daily_reminder: int = Form(0),
+    mood_reminder: int = Form(0),
+    journal_reminder: int = Form(0)
+):
+    settings = db_manager.update_user_settings(username, theme, font_size, ai_tone, daily_reminder, mood_reminder, journal_reminder)
+    return {"success": True, "settings": settings}
+
+@app.post("/export_data")
+def export_data_endpoint(username: str = Form("default")):
+    data = db_manager.export_all_user_data(username)
+    return {"data": data}
+
+@app.post("/delete_all_data")
+def delete_all_data_endpoint(username: str = Form("default")):
+    db_manager.wipe_all_user_data(username)
+    return {"success": True, "message": "All user data cleared."}
 
 @app.post("/voice")
 def voice_endpoint(audio_file: UploadFile = File(...), username: str = Form("default")):
@@ -595,6 +759,7 @@ def clear_history_endpoint(username: str = Form("default")):
             print(f"Firestore clear history error: {e}")
 
     fallback_history[username] = []
+    db_manager.clear_all_user_sessions(username)
     return {"success": True, "message": "Chat history cleared successfully."}
 
 if __name__ == "__main__":
