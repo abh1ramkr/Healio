@@ -727,8 +727,6 @@ function App() {
       </div>
     );
   }
-    );
-  }
 
   // 3. Main Mental Wellness Platform Interface
   return (
