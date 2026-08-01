@@ -700,23 +700,15 @@ function App() {
       <div className="main-body-container">
         {/* Collapsible Wellness Sidebar with Clear Chat & Logout at Bottom */}
         <aside className={`wellness-sidebar ${isSidebarOpen ? '' : 'collapsed'}`}>
-          {/* AI-Detected Current Mood Display */}
-          <div className="sidebar-box">
-            <h4>Current Mood (AI Detected)</h4>
-            <div className="mood-buttons-grid">
-              {['😄', '😊', '😐', '😔', '😰'].map((emoji) => (
-                <button
-                  key={emoji}
-                  className={`btn-mood-emoji ${selectedMood === emoji ? 'selected' : ''}`}
-                  title={`AI Detected Mood: ${selectedMood === emoji ? detectedEmotionLabel : emoji}`}
-                  style={{ pointerEvents: 'none' }} // Automatically selected by AI
-                >
-                  {emoji}
-                </button>
-              ))}
-            </div>
-            <div className="ai-detected-pill">
-              ✨ Bot Detected: <strong>{detectedEmotionLabel}</strong>
+          {/* Single AI-Detected Current Mood Display */}
+          <div className="sidebar-box single-mood-box">
+            <h4>Current Mood</h4>
+            <div className="single-mood-display">
+              <span className="single-mood-emoji" title={`Bot Detected: ${detectedEmotionLabel}`}>{selectedMood}</span>
+              <div className="mood-meta">
+                <span className="mood-status-label">Bot Detected</span>
+                <strong className="mood-emotion-name">{detectedEmotionLabel}</strong>
+              </div>
             </div>
           </div>
 

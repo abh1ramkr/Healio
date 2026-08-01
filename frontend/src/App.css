@@ -806,18 +806,52 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
 }
 
-.ai-detected-pill {
-  display: inline-flex;
+.single-mood-box {
+  background: linear-gradient(135deg, rgba(124, 108, 255, 0.12) 0%, rgba(30, 41, 59, 0.6) 100%);
+  border: 1px solid rgba(124, 108, 255, 0.25);
+}
+
+.single-mood-display {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(124, 108, 255, 0.15);
-  border: 1px solid rgba(124, 108, 255, 0.3);
-  color: #c7d2fe;
-  padding: 4px 10px;
-  border-radius: 12px;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.single-mood-emoji {
+  font-size: 34px;
+  background: rgba(124, 108, 255, 0.18);
+  border: 1px solid rgba(124, 108, 255, 0.35);
+  border-radius: var(--radius-sm);
+  width: 54px;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(124, 108, 255, 0.2);
+  transition: all 0.3s ease;
+  animation: pulseGlow 3s infinite ease-in-out;
+}
+
+.mood-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.mood-status-label {
   font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   font-weight: 600;
-  margin-top: 8px;
+}
+
+.mood-emotion-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  text-transform: capitalize;
+  letter-spacing: -0.01em;
 }
 
 .sidebar-bottom-actions {
