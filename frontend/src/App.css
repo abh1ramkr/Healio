@@ -1992,6 +1992,50 @@ h1, h2, h3, h4, h5, h6 {
 }
 .theme-dark .modal-desc { color: #94A3B8 !important; }
 
+.theme-dark .btn-modal-cancel {
+  background: rgba(30, 41, 59, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  color: #F8FAFC !important;
+}
+.theme-dark .btn-modal-cancel:hover {
+  background: rgba(45, 59, 82, 0.95) !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+  color: #818CF8 !important;
+}
+
+.theme-dark .grounding-step-box {
+  background: rgba(30, 41, 59, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #F8FAFC !important;
+}
+.theme-dark .grounding-step-box h4 {
+  color: #F8FAFC !important;
+}
+
+.theme-dark .tip-quote-box {
+  background: rgba(244, 63, 94, 0.12) !important;
+  color: #F8FAFC !important;
+  border: 1px solid rgba(244, 63, 94, 0.25) !important;
+}
+
+.theme-dark .btn-reflect-ai {
+  background: linear-gradient(135deg, rgba(129, 140, 248, 0.2) 0%, rgba(99, 102, 241, 0.25) 100%) !important;
+  border-color: rgba(129, 140, 248, 0.4) !important;
+  color: #A5B4FC !important;
+}
+.theme-dark .btn-reflect-ai:hover {
+  background: #6366F1 !important;
+  color: #FFFFFF !important;
+}
+
+.theme-dark .btn-msg-dots {
+  color: #94A3B8 !important;
+}
+.theme-dark .btn-msg-dots:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #F8FAFC !important;
+}
+
 .theme-dark .glass-input,
 .theme-dark .glass-textarea {
   background: rgba(30, 41, 59, 0.8) !important;
